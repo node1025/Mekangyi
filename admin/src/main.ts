@@ -1,0 +1,10 @@
+import {createApp} from 'vue';
+import axios from 'axios';
+import App from './App.vue';
+import router from './router';
+import './style.css';
+axios.defaults.baseURL=(import.meta.env.VITE_API_BASE_URL||'').replace(/\/+$/,'');
+axios.defaults.withCredentials=true;
+axios.interceptors.request.use(config=>{const token=localStorage.getItem('accessToken');if(token)config.headers.Authorization='Bearer '+token;return config});
+axios.interceptors.response.use(r=>r,error=>{if(error.response?.data?.code==='ADMIN_REAUTH_REQUIRED'&&router.currentRoute.value.path==='/admin')void router.replace('/admin/access');return Promise.reject(error)});
+createApp(App).use(router).mount('#app');

@@ -1,0 +1,18 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json", // Vue용 기본 DOM 환경 TS 설정을 상속
+
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo", // TS 빌드 캐시 경로
+    "types": ["vite/client"],                   // Vite 환경 전용 타입
+
+    /* Linting */
+    "strict": true,                              // 엄격한 타입 검사 모드
+    "noUnusedLocals": true,                      // 사용하지 않는 지역 변수 검사
+    "noUnusedParameters": true,                  // 사용하지 않는 매개변수 검사
+    "erasableSyntaxOnly": true,                  // 제거 가능한 TS 타입만 허용
+    "noFallthroughCasesInSwitch": true,          // switch case 누락 방지
+    "noUncheckedSideEffectImports": true         // 부작용만 있는 import 감지 강화
+  },
+
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"] // TS가 검사할 소스 파일 범위
+}

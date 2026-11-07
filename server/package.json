@@ -1,0 +1,37 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test",
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "seed:demo": "node scripts/seed-demo.cjs",
+    "admin:demo": "node scripts/create-demo-admin.cjs",
+    "db:init": "node scripts/init-db.cjs",
+    "test:mariadb": "node scripts/run-maria-integration.cjs",
+    "options:update": "node scripts/update-goods-options.cjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.13.3",
+    "bcrypt": "^6.0.0",
+    "cloudinary": "^2.11.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mariadb": "^3.5.5",
+    "multer": "^2.0.2",
+    "nodemailer": "^10.3.1",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

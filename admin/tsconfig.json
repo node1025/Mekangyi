@@ -1,0 +1,7 @@
+{
+  "files": [],                        // 직접 포함할 파일
+  "references": [
+    { "path": "./tsconfig.app.json" }, // 앱 관련 TS 설정
+    { "path": "./tsconfig.node.json" } // Node 환경 TS 설정
+  ]
+}
