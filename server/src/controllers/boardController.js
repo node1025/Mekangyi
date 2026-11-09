@@ -84,8 +84,11 @@ exports.getPostDetail = async (req, res) => {
   try {
     const post = await loadPost(req.params.id);
     if (!canRead(post, req.user, req.adminVerified)) throw fail('비밀글은 작성자와 관리자만 볼 수 있습니다.', 403);
-    await Board.updateOne({ _id: post._id }, { $inc: { views: 1 } });
-    post.views += 1;
+    const isAdminConsoleView = req.user?.role === 'admin' && req.adminVerified;
+    if (!isAdminConsoleView) {
+      await Board.updateOne({ _id: post._id }, { $inc: { views: 1 } });
+      post.views += 1;
+    }
     await post.populate('author', 'name userId');
     if (post.isPrivate) res.set('Cache-Control', 'no-store');
     res.json({ post });

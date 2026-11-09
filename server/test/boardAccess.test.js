@@ -16,7 +16,11 @@ test('member board access over HTTP', async t => {
     return doc;
   });
   t.mock.method(Board, 'findById', async id => rows.get(String(id)) || null);
-  t.mock.method(Board, 'updateOne', async () => ({ matchedCount: 1 }));
+  let viewIncrements = 0;
+  t.mock.method(Board, 'updateOne', async (filter, update) => {
+    if (update?.$inc?.views) viewIncrements += 1;
+    return { matchedCount: 1 };
+  });
   t.mock.method(Board.prototype, 'populate', async function () { return this; });
   t.mock.method(Board.prototype, 'save', async function () {
     await this.validate();
@@ -80,7 +84,10 @@ test('member board access over HTTP', async t => {
     const own = await request('GET', `/${postId}`, 'owner');
     assert.equal(own.status, 200);
     assert.equal(own.headers.get('cache-control'), 'no-store');
+    const viewsAfterOwner = viewIncrements;
+    assert.equal(viewsAfterOwner, 1);
     assert.equal((await request('GET', `/${postId}`, 'admin')).status, 200);
+    assert.equal(viewIncrements, viewsAfterOwner, '관리자 재인증 조회는 조회수를 올리지 않아야 합니다');
     assert.equal((await request('POST', `/${postId}/comments`, 'other', { content: '댓글' })).status, 403);
   });
   await t.test('member can edit own post but cannot edit another or promote it to notice/event', async () => {

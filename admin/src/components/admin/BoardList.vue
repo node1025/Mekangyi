@@ -3,6 +3,7 @@ const categoryLabels: Record<string, string> = { free: '자유게시판', qna: '
 import { ref, onMounted } from 'vue';
 import { boardApi } from '../../utils/boardApi';
 import BoardWrite from '../admin/BoardWrite.vue';
+import BoardDetailPanel from '../admin/BoardDetailPanel.vue';
 
 // 게시글 데이터 타입 정의
 interface Post {
@@ -22,6 +23,22 @@ interface Post {
 const posts = ref<Post[]>([]);      // 게시글 목록 상태
 const category = ref('');           // 현재 선택된 카테고리 상태
 const isModalOpen = ref(false);     // 글쓰기 모달 열림 상태
+const isDetailOpen = ref(false);
+const selectedPostId = ref('');
+
+const openDetail = (id: string) => {
+  selectedPostId.value = id;
+  isDetailOpen.value = true;
+};
+
+const closeDetail = () => {
+  isDetailOpen.value = false;
+  selectedPostId.value = '';
+};
+
+const onDetailChanged = () => {
+  fetchPosts();
+};
 
 // 게시글 목록 조회 함수
 const fetchPosts = async () => {
@@ -90,7 +107,9 @@ onMounted(fetchPosts);          // 컴포넌트 마운트 시 실행
           <td>{{ index + 1 }}</td>
           <td><span :class="['badge', post.category]">{{ categoryLabels[post.category] || post.category }}</span></td>
           <td class="title-cell">
-            <router-link :to="`/board/${post._id}`">{{ post.title }}</router-link>
+            <button type="button" class="title-link" @click="openDetail(post._id)">
+              {{ post.title }}
+            </button>
             <span v-if="post.isPrivate"> 🔒</span>
           </td>
           <td>{{ post.author?.name || '탈퇴한 회원' }}</td>
@@ -118,6 +137,26 @@ onMounted(fetchPosts);          // 컴포넌트 마운트 시 실행
       </Transition>
     </Teleport>
 
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="isDetailOpen && selectedPostId" class="modal-overlay" @click.self="closeDetail">
+          <div class="modal-card detail-card">
+            <header class="modal-header">
+              <h3>게시글 보기</h3>
+              <button type="button" class="close-icon-btn" @click="closeDetail">&times;</button>
+            </header>
+            <div class="modal-body">
+              <BoardDetailPanel
+                :post-id="selectedPostId"
+                @close="closeDetail"
+                @changed="onDetailChanged"
+              />
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
   </div>
 </template>
 
@@ -126,8 +165,8 @@ onMounted(fetchPosts);          // 컴포넌트 마운트 시 실행
 /* 게시판 전체 레이아웃 */
 .board-container { 
   max-width: 1100px; 
-  margin: 60px auto; 
-  padding: 0 20px;
+  margin: 0 auto; 
+  padding: 0;
   font-family:var(--font-body);
   color: #222;
 }
@@ -193,13 +232,23 @@ onMounted(fetchPosts);          // 컴포넌트 마운트 시 실행
   font-weight: 500;
 }
 
-.title-cell a {
-  text-decoration: none;
+.title-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
   color: inherit;
+  cursor: pointer;
+  text-align: left;
 }
 
-.title-cell a:hover {
+.title-link:hover {
   text-decoration: underline;
+  color: #2563eb;
+}
+
+.detail-card {
+  max-width: 760px;
 }
 
 /* 카테고리 배지 스타일 */
