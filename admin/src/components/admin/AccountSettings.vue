@@ -9,25 +9,17 @@ const router = useRouter();
 const store = useUserStore();
 const { user, userName } = store;
 
-const activePanel = ref<'login' | 'reauth' | 'danger'>('login');
+const activePanel = ref<'login' | 'danger'>('login');
 
 const currentPassword = ref('');
 const newPassword = ref('');
 const confirmPassword = ref('');
 const withdrawPassword = ref('');
 
-const loginForReauth = ref('');
-const currentReauth = ref('');
-const newReauth = ref('');
-const confirmReauth = ref('');
-
 const pwdMessage = ref('');
 const pwdError = ref('');
-const reauthMessage = ref('');
-const reauthError = ref('');
 const withdrawError = ref('');
 const busyPassword = ref(false);
-const busyReauth = ref(false);
 const busyWithdraw = ref(false);
 
 const pwRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*]).{10,}$/;
@@ -39,15 +31,9 @@ const avatarInitial = computed(() => (displayName.value.trim()[0] || '관').toUp
 const panels = [
   {
     id: 'login' as const,
-    step: 'STEP 01',
-    title: '로그인 비밀번호',
+    step: '로그인',
+    title: '비밀번호',
     blurb: '관리자 로그인 화면에서 사용합니다.',
-  },
-  {
-    id: 'reauth' as const,
-    step: 'STEP 02',
-    title: '2차 운영 비밀번호',
-    blurb: '관리자 콘솔 입장 전 재인증에 사용합니다.',
   },
   {
     id: 'danger' as const,
@@ -97,51 +83,6 @@ async function changePassword() {
   }
 }
 
-async function changeReauthPassword() {
-  reauthMessage.value = '';
-  reauthError.value = '';
-  if (!loginForReauth.value || !newReauth.value || !confirmReauth.value) {
-    reauthError.value = '1차 비밀번호와 새 2차 비밀번호를 입력해주세요.';
-    return;
-  }
-  if (newReauth.value !== confirmReauth.value) {
-    reauthError.value = '새 2차 비밀번호 확인이 일치하지 않습니다.';
-    return;
-  }
-  if (loginForReauth.value === newReauth.value) {
-    reauthError.value = '2차 비밀번호는 1차와 달라야 합니다.';
-    return;
-  }
-  if (!pwRegex.test(newReauth.value)) {
-    reauthError.value = '2차 비밀번호는 영문, 숫자, 특수문자를 포함해 10자 이상이어야 합니다.';
-    return;
-  }
-  if (busyReauth.value) return;
-  busyReauth.value = true;
-  try {
-    const { data } = await axios.patch('/api/admin/reauth-password', {
-      loginPassword: loginForReauth.value,
-      currentReauthPassword: currentReauth.value || undefined,
-      newReauthPassword: newReauth.value,
-    });
-    reauthMessage.value = data.message || '2차 비밀번호가 변경되었습니다.';
-    loginForReauth.value = '';
-    currentReauth.value = '';
-    newReauth.value = '';
-    confirmReauth.value = '';
-    try {
-      await axios.delete('/api/admin/session');
-    } catch {
-      /* ignore */
-    }
-    await router.replace(adminPaths.gate);
-  } catch (e: any) {
-    reauthError.value = e.response?.data?.message || '2차 비밀번호 변경에 실패했습니다.';
-  } finally {
-    busyReauth.value = false;
-  }
-}
-
 async function deleteAccount() {
   withdrawError.value = '';
   if (!withdrawPassword.value) {
@@ -183,20 +124,12 @@ async function deleteAccount() {
           </p>
         </div>
       </div>
-      <ul class="account-flow" aria-label="인증 단계 안내">
+      <ul class="account-flow" aria-label="인증 안내">
         <li>
           <span class="flow-step">01</span>
           <div>
-            <strong>로그인</strong>
-            <p>1차 비밀번호</p>
-          </div>
-        </li>
-        <li aria-hidden="true" class="flow-connector" />
-        <li>
-          <span class="flow-step">02</span>
-          <div>
-            <strong>재인증</strong>
-            <p>2차 운영 비밀번호</p>
+            <strong>관리자 로그인</strong>
+            <p>아이디·비밀번호로 콘솔에 접속합니다.</p>
           </div>
         </li>
       </ul>
@@ -230,7 +163,6 @@ async function deleteAccount() {
         <ul>
           <li>10자 이상</li>
           <li>영문 · 숫자 · 특수문자(!@#$%^&amp;*) 각 1종 이상</li>
-          <li v-if="activePanel === 'reauth'">2차는 1차와 서로 달라야 합니다</li>
         </ul>
       </aside>
 
@@ -285,75 +217,7 @@ async function deleteAccount() {
 
         <div class="form-actions">
           <button type="submit" class="btn primary" :disabled="busyPassword">
-            {{ busyPassword ? '변경 중…' : '1차 비밀번호 저장' }}
-          </button>
-        </div>
-      </form>
-
-      <form
-        v-else-if="activePanel === 'reauth'"
-        id="panel-reauth"
-        class="settings-form"
-        @submit.prevent="changeReauthPassword"
-      >
-        <div class="field">
-          <label for="login-reauth">1차 로그인 비밀번호 확인</label>
-          <input
-            id="login-reauth"
-            v-model="loginForReauth"
-            class="form-input"
-            type="password"
-            autocomplete="current-password"
-            maxlength="72"
-            required
-          />
-        </div>
-        <div class="field">
-          <label for="cur-reauth">현재 2차 비밀번호</label>
-          <input
-            id="cur-reauth"
-            v-model="currentReauth"
-            class="form-input"
-            type="password"
-            autocomplete="off"
-            maxlength="72"
-          />
-          <p class="field-hint">이미 설정한 경우 현재 2차 비밀번호를 입력해주세요.</p>
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <label for="new-reauth">새 2차 비밀번호</label>
-            <input
-              id="new-reauth"
-              v-model="newReauth"
-              class="form-input"
-              type="password"
-              autocomplete="new-password"
-              maxlength="72"
-              required
-            />
-          </div>
-          <div class="field">
-            <label for="confirm-reauth">새 2차 비밀번호 확인</label>
-            <input
-              id="confirm-reauth"
-              v-model="confirmReauth"
-              class="form-input"
-              type="password"
-              autocomplete="new-password"
-              maxlength="72"
-              required
-            />
-          </div>
-        </div>
-        <p class="field-hint">저장 후 재인증(STEP 02) 화면으로 이동합니다.</p>
-
-        <div v-if="reauthError" class="banner error" role="alert">{{ reauthError }}</div>
-        <div v-if="reauthMessage" class="banner success" role="status">{{ reauthMessage }}</div>
-
-        <div class="form-actions">
-          <button type="submit" class="btn primary" :disabled="busyReauth">
-            {{ busyReauth ? '변경 중…' : '2차 비밀번호 저장' }}
+            {{ busyPassword ? '변경 중…' : '로그인 비밀번호 저장' }}
           </button>
         </div>
       </form>

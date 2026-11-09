@@ -8,6 +8,7 @@ const DURATION = 15 * 60000;
 const hash = value => createHash('sha256').update(value).digest('hex');
 const bearer = req => req.header('Authorization')?.replace(/^Bearer /, '') || '';
 const cookieOptions = () => ({ httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/api' });
+
 async function verify(req) {
   if (!adminNetwork.allowed(req)) return null;
   if (req.user?.role !== 'admin') return null;
@@ -16,64 +17,65 @@ async function verify(req) {
   const session = await AdminSession.findOne({ tokenHash: hash(token), userId: req.user.id, expiresAt: { $gt: new Date() } });
   if (!session || session.accessTokenHash !== hash(bearer(req))) return null;
   const user = await User.findById(req.user.id);
-  if (!user || user.role !== 'admin' || !user.isActivated || !user.adminReauthPassword) return null;
-  if (session.passwordFingerprint !== hash(user.adminReauthPassword)) return null;
+  if (!user || user.role !== 'admin' || !user.isActivated) return null;
   return session;
 }
+
 exports.requireAdmin = async (req, res, next) => {
   try {
     const session = await verify(req);
-    if (!session) return res.status(403).json({ code: 'ADMIN_REAUTH_REQUIRED', message: '관리자 전용 로그인에서 다시 인증해주세요.' });
-    req.adminVerified = true; req.adminSession = session;
+    if (!session) {
+      return res.status(403).json({ code: 'ADMIN_SESSION_REQUIRED', message: '관리자 로그인 후 다시 접속해주세요.' });
+    }
+    req.adminVerified = true;
+    req.adminSession = session;
     res.set('Cache-Control', 'no-store');
     next();
-  } catch { res.status(503).json({ message: '관리자 인증을 확인할 수 없습니다. 잠시 후 다시 시도해주세요.' }); }
+  } catch {
+    res.status(503).json({ message: '관리자 인증을 확인할 수 없습니다. 잠시 후 다시 시도해주세요.' });
+  }
 };
+
 exports.optionalAdmin = async (req, res, next) => {
-  try { req.adminVerified = Boolean(await verify(req)); next(); }
-  catch { res.status(503).json({ message: '관리자 인증을 확인할 수 없습니다.' }); }
+  try {
+    req.adminVerified = Boolean(await verify(req));
+    next();
+  } catch {
+    res.status(503).json({ message: '관리자 인증을 확인할 수 없습니다.' });
+  }
 };
-exports.ifAdmin = (req, res, next) => req.user?.role === 'admin' ? exports.requireAdmin(req, res, next) : next();
+
+exports.ifAdmin = (req, res, next) => (req.user?.role === 'admin' ? exports.requireAdmin(req, res, next) : next());
+
+/** 1차 로그인(JWT) 직후 보호 세션 쿠키 발급 */
 exports.create = async (req, res) => {
   res.set('Cache-Control', 'no-store');
   if (!adminNetwork.allowed(req)) return res.status(403).json({ message: '허용된 관리자 네트워크에서 접속해주세요.' });
-  const { userId, reauthPassword, password: legacyPassword } = req.body || {};
-  const reauth = typeof reauthPassword === 'string' ? reauthPassword : legacyPassword;
-  if (typeof userId !== 'string' || typeof reauth !== 'string' || Buffer.byteLength(reauth) > 72) {
-    return res.status(400).json({ message: '관리자 아이디와 2차 재인증 비밀번호를 입력해주세요.' });
-  }
   try {
     const user = await User.findById(req.user.id);
-    if (!user || req.user.role !== 'admin' || user.role !== 'admin' || !user.isActivated || user.userId !== userId) {
-      return res.status(403).json({ message: '관리자 인증 정보를 확인해주세요.' });
+    if (!user || req.user.role !== 'admin' || user.role !== 'admin' || !user.isActivated) {
+      return res.status(403).json({ message: '관리자 계정만 이용할 수 있습니다.' });
     }
-    if (!user.adminReauthPassword) {
-      return res.status(403).json({ message: '2차 비밀번호가 설정되지 않았습니다. npm run admin:reset-password 로 1·2차 비밀번호를 설정해주세요.' });
-    }
-    if (!(await user.compareAdminReauthPassword(reauth))) {
-      return res.status(403).json({ message: '2차 재인증 비밀번호를 확인해주세요.' });
-    }
+    const accessHash = hash(bearer(req));
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + DURATION);
-    await maria.transaction(async session => {
-      // Lock the account so parallel reauthentication cannot leave multiple sessions behind.
-      const current = await User.findById(user._id).session(session);
-      if (!current || current.role !== 'admin' || !current.isActivated || current.adminReauthPassword !== user.adminReauthPassword) {
-        throw new Error('Account changed');
-      }
+    await maria.transaction(async (session) => {
       await AdminSession.deleteMany({ userId: user._id }).session(session);
       await AdminSession.create({
         userId: user._id,
         tokenHash: hash(token),
-        accessTokenHash: hash(bearer(req)),
-        passwordFingerprint: hash(user.adminReauthPassword),
-        expiresAt
+        accessTokenHash: accessHash,
+        passwordFingerprint: accessHash,
+        expiresAt,
       }, { session });
     });
     res.cookie(COOKIE, token, { ...cookieOptions(), maxAge: DURATION });
-    res.status(200).json({ message: '관리자 인증을 완료했습니다.', expiresAt });
-  } catch { res.status(503).json({ message: '관리자 로그인을 완료하지 못했습니다.' }); }
+    res.status(200).json({ message: '관리자 세션이 시작되었습니다.', expiresAt });
+  } catch {
+    res.status(503).json({ message: '관리자 세션을 시작하지 못했습니다.' });
+  }
 };
+
 exports.destroy = async (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
@@ -81,14 +83,17 @@ exports.destroy = async (req, res) => {
     if (typeof token === 'string') await AdminSession.deleteOne({ userId: req.user.id, tokenHash: hash(token) });
     res.clearCookie(COOKIE, cookieOptions());
     res.json({ message: '관리자 세션을 종료했습니다.' });
-  } catch { res.status(503).json({ message: '관리자 세션을 종료하지 못했습니다.' }); }
+  } catch {
+    res.status(503).json({ message: '관리자 세션을 종료하지 못했습니다.' });
+  }
 };
+
 exports.inspect = async (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
     const session = await verify(req);
     if (!session) {
-      return res.status(403).json({ code: 'ADMIN_REAUTH_REQUIRED', message: '관리자 전용 로그인에서 다시 인증해주세요.' });
+      return res.status(403).json({ code: 'ADMIN_SESSION_REQUIRED', message: '관리자 로그인 후 다시 접속해주세요.' });
     }
     res.json({ authorized: true, expiresAt: session.expiresAt });
   } catch {
@@ -96,18 +101,17 @@ exports.inspect = async (req, res) => {
   }
 };
 
-/** 관리 콘솔 변경 API 성공 시 보호 세션 만료 시각을 15분으로 다시 시작 (클레임·고객관리 화면 제외) */
 exports.refresh = async (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
     const session = await verify(req);
     if (!session) {
-      return res.status(403).json({ code: 'ADMIN_REAUTH_REQUIRED', message: '관리자 전용 로그인에서 다시 인증해주세요.' });
+      return res.status(403).json({ code: 'ADMIN_SESSION_REQUIRED', message: '관리자 로그인 후 다시 접속해주세요.' });
     }
     const expiresAt = new Date(Date.now() + DURATION);
     const token = req.cookies?.[COOKIE];
     if (typeof token !== 'string') {
-      return res.status(403).json({ code: 'ADMIN_REAUTH_REQUIRED', message: '관리자 전용 로그인에서 다시 인증해주세요.' });
+      return res.status(403).json({ code: 'ADMIN_SESSION_REQUIRED', message: '관리자 로그인 후 다시 접속해주세요.' });
     }
     await AdminSession.updateOne(
       { tokenHash: hash(token), userId: req.user.id },

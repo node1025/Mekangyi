@@ -17,9 +17,9 @@ const EXCLUDED_CONSOLE_MENUS = new Set(['claims', 'users']);
 
 const MUTATING_METHODS = new Set(['post', 'patch', 'put', 'delete']);
 
-/** 연장하지 않을 API (세션·로그인·비밀번호 변경 후 재인증/로그아웃 등) */
+/** 연장하지 않을 API (세션·로그인·비밀번호 변경·로그아웃 등) */
 const SKIP_PATH_RE =
-  /^\/api\/(?:admin\/session(?:\/|$)|auth\/(?:login|password)(?:\/|$)|admin\/reauth-password(?:\/|$))/;
+  /^\/api\/(?:admin\/session(?:\/|$)|auth\/(?:login|password)(?:\/|$))/;
 
 let consoleMenuId = 'products';
 
@@ -97,7 +97,7 @@ export function unregisterAdminSessionClock() {
   onSessionExtended = null;
 }
 
-/** 2차 인증 보호 세션을 15분으로 다시 연장 */
+/** 관리자 보호 세션을 15분으로 다시 연장 */
 export async function extendAdminProtectedSession(): Promise<boolean> {
   try {
     const { data } = await axios.post('/api/admin/session/refresh');

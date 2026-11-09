@@ -1,11 +1,8 @@
 const router = require('express').Router();
 const { authMiddleware, isAdmin } = require('../middleware/authMiddleware');
 const sessions = require('../services/adminSession');
-const adminAccount = require('../controllers/adminAccountController');
-const limit = require('../middleware/loginRateLimit').createLoginRateLimit();
-router.patch('/reauth-password', authMiddleware, adminAccount.updateReauthPassword);
 router.post('/session/refresh', authMiddleware, isAdmin, sessions.refresh);
-router.post('/session', authMiddleware, limit, sessions.create);
+router.post('/session', authMiddleware, sessions.create);
 router.get('/session', authMiddleware, isAdmin, sessions.inspect);
 router.delete('/session', authMiddleware, sessions.destroy);
 module.exports = router;

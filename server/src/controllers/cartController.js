@@ -42,8 +42,8 @@ exports.addToCart = async (req, res) => {
     // 장바구니가 이미 있는 경우
     if (cart) {
       // items 배열 안에 같은 variantId + 같은 size 상품이 있는지 확인
-      const itemIndex = cart.items.findIndex(p => 
-        p.variantId.toString() === variantId && p.size === size
+      const itemIndex = cart.items.findIndex(
+        (p) => String(p.variantId) === String(variantId) && p.size === size
       );
 
       // 이미 동일 옵션 상품이 있다면
@@ -59,18 +59,20 @@ exports.addToCart = async (req, res) => {
         // 없으면 새로 추가
         cart.items.push({ productId, variantId, size, quantity, price });
       }
+      ensureCartItemIds(cart);
       cart = await cart.save();
     } else {
       if (quantity > inventory.stockQuantity) return res.status(400).json({ message: '재고 수량을 초과했습니다.' });
       // 장바구니가 아예 없는 경우(새로 생성)
       cart = await Cart.create({
         userId,
-        items: [{ productId, variantId, size, quantity, price }]
+        items: [{ productId, variantId, size, quantity, price }],
       });
     }
     res.status(201).json(cart);
   } catch (error) {
-    res.status(500).json({ message: "장바구니 담기 실패", error });
+    console.error('장바구니 담기 실패:', error);
+    res.status(500).json({ message: '장바구니 담기에 실패했습니다. 잠시 후 다시 시도해주세요.' });
   }
 };
 

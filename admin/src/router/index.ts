@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import axios from 'axios';
 import Login from '../views/Login.vue';
-import AdminAccess from '../views/AdminAccess.vue';
 import AdminPage from '../views/AdminPage.vue';
 import { adminPaths } from '../config/adminRoutes';
 
@@ -11,7 +10,7 @@ const router = createRouter({
   routes: [
     { path: '/', redirect: adminPaths.login },
     { path: adminPaths.login, name: 'AdminLogin', component: Login },
-    { path: adminPaths.gate, name: 'AdminGate', component: AdminAccess },
+    { path: adminPaths.gate, redirect: adminPaths.console },
     {
       path: adminPaths.console,
       name: 'AdminConsole',
@@ -27,7 +26,7 @@ router.beforeEach(async (to) => {
     try {
       await axios.get('/api/admin/session');
     } catch {
-      return adminPaths.gate;
+      return adminPaths.login;
     }
   }
 });

@@ -27,7 +27,7 @@ function bindSessionClock(expiresAt: string) {
     secondsLeft.value = Math.max(0, Math.ceil((sessionEndsAtMs - Date.now()) / 1000));
     if (!secondsLeft.value) {
       clearInterval(sessionTimer);
-      void router.replace(adminPaths.gate);
+      void router.replace(adminPaths.login);
     }
   };
   tick();
@@ -37,7 +37,7 @@ function bindSessionClock(expiresAt: string) {
 async function lockAdmin() {
   try {
     await axios.delete('/api/admin/session');
-    await router.replace(adminPaths.gate);
+    await router.replace(adminPaths.login);
   } catch {
     alert('세션 잠금을 완료하지 못했습니다. 다시 시도해주세요.');
   }
@@ -53,7 +53,7 @@ onMounted(async () => {
     const { data } = await axios.get('/api/admin/session');
     bindSessionClock(data.expiresAt);
   } catch {
-    await router.replace(adminPaths.gate);
+    await router.replace(adminPaths.login);
   }
 });
 onUnmounted(() => {

@@ -25,10 +25,11 @@ axios.interceptors.response.use(
   },
   (error) => {
     if (
-      error.response?.data?.code === 'ADMIN_REAUTH_REQUIRED' &&
+      (error.response?.data?.code === 'ADMIN_SESSION_REQUIRED' ||
+        error.response?.data?.code === 'ADMIN_REAUTH_REQUIRED') &&
       isConsolePath(router.currentRoute.value.path)
     ) {
-      void router.replace(adminPaths.gate);
+      void router.replace(adminPaths.login);
     }
     return Promise.reject(error);
   }

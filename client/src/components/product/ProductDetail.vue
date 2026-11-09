@@ -12,6 +12,8 @@ const userStore = useUserStore();
 const isWished = ref(false);
 const wishPending = ref(false);
 const wishFeedback = ref('');
+const cartPending = ref(false);
+const cartFeedback = ref('');
 
 // 서버 기본 URL 설정
 const SERVER_URL = ((import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')).replace(/\/$/, '');
@@ -178,20 +180,38 @@ const removeItem = (index: number) => {
   selectedItems.value.splice(index, 1);
 };
 
+/** 옵션이 하나뿐이면 자동으로 선택 목록에 담기 */
+function tryAutoPickSingleOption(): boolean {
+  if (selectedItems.value.length > 0) return true;
+  const variant = currentVariant.value;
+  if (!variant?.inventory?.length) return false;
+  const inStock = variant.inventory.filter(
+    (inv: { stockQuantity: number; size: string }) => inv.stockQuantity > 0
+  );
+  if (inStock.length !== 1) return false;
+  const size = inStock[0].size;
+  selectedItems.value.push({
+    variantId: variant._id,
+    color: variant.color,
+    size,
+    quantity: 1,
+    price: unitPrice.value,
+  });
+  return true;
+}
+
 // 장바구니 공통 저장 로직
 const saveToCart = async () => {
+  if (!product.value?._id) throw new Error('상품 정보를 불러오는 중입니다.');
   for (const item of selectedItems.value) {
-    await axios.post(`${SERVER_URL}/api/cart`, {
+    await axios.post('/api/cart', {
       productId: product.value._id,
       variantId: item.variantId,
       size: item.size,
       quantity: item.quantity,
-      price: item.price
-    }, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
     });
   }
-  window.dispatchEvent(new CustomEvent('cart-updated'));  // 장바구니 상태 갱신 이벤트
+  window.dispatchEvent(new CustomEvent('cart-updated'));
 };
 
 const authHeaders = () => ({
@@ -254,33 +274,83 @@ const toggleWish = async () => {
   }
 };
 
-// 장바구니 담기
-const addToCart = async () => {
-  if (selectedItems.value.length === 0) {
-    alert('선택된 옵션이 없습니다.');
+function requireCartSelection(): boolean {
+  if (selectedItems.value.length > 0) return true;
+  if (tryAutoPickSingleOption()) return true;
+  cartFeedback.value =
+    '「옵션」 드롭다운에서 사이즈(또는 단일 옵션)를 선택해 목록에 추가한 뒤 장바구니 담기를 눌러주세요.';
+  return false;
+}
+
+function handleCartError(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    cartFeedback.value = '장바구니 담기에 실패했습니다.';
     return;
   }
+  const status = error.response?.status;
+  const msg = error.response?.data?.message;
+  if (status === 401 || status === 403) {
+    cartFeedback.value = msg || '로그인이 필요합니다. 로그인 후 다시 시도해주세요.';
+    if (window.confirm('로그인 페이지로 이동할까요?')) {
+      router.push({ path: '/login', query: { redirect: route.fullPath } });
+    }
+    return;
+  }
+  cartFeedback.value = msg || '장바구니 담기에 실패했습니다.';
+}
+
+// 장바구니 담기
+const addToCart = async () => {
+  cartFeedback.value = '';
+  if (cartPending.value) return;
+  if (!requireCartSelection()) return;
+
+  const token = localStorage.getItem('accessToken');
+  if (!token || !userStore.isLoggedIn.value) {
+    cartFeedback.value = '로그인 후 장바구니에 담을 수 있습니다.';
+    if (window.confirm('로그인 페이지로 이동할까요?')) {
+      router.push({ path: '/login', query: { redirect: route.fullPath } });
+    }
+    return;
+  }
+
+  cartPending.value = true;
   try {
     await saveToCart();
-    if(confirm('장바구니에 담겼습니다. 장바구니로 이동하시겠습니까?')) {
+    cartFeedback.value = '장바구니에 담았습니다.';
+    if (window.confirm('장바구니로 이동하시겠습니까?')) {
       router.push('/cart');
     }
   } catch (error) {
-    alert('로그인이 필요합니다.');
+    handleCartError(error);
+  } finally {
+    cartPending.value = false;
   }
 };
 
 // 바로 구매
 const buyNow = async () => {
-  if (selectedItems.value.length === 0) {
-    alert('옵션을 선택해 주세요.');
+  cartFeedback.value = '';
+  if (cartPending.value) return;
+  if (!requireCartSelection()) return;
+
+  const token = localStorage.getItem('accessToken');
+  if (!token || !userStore.isLoggedIn.value) {
+    cartFeedback.value = '로그인 후 구매할 수 있습니다.';
+    if (window.confirm('로그인 페이지로 이동할까요?')) {
+      router.push({ path: '/login', query: { redirect: route.fullPath } });
+    }
     return;
   }
+
+  cartPending.value = true;
   try {
     await saveToCart();
     router.push('/cart');
   } catch (error) {
-    alert('로그인이 필요합니다.');
+    handleCartError(error);
+  } finally {
+    cartPending.value = false;
   }
 };
 
@@ -479,7 +549,9 @@ const renderStars = (rating: number) => {
       <div class="button-grid">
         <button class="buy-now-btn" @click="buyNow">바로 구매</button>
         <div class="sub-action-btns">
-          <button class="cart-btn" @click="addToCart">장바구니 담기</button>
+          <button class="cart-btn" :disabled="cartPending" @click="addToCart">
+            {{ cartPending ? '담는 중…' : '장바구니 담기' }}
+          </button>
           <button
             type="button"
             class="wish-btn"
@@ -498,6 +570,14 @@ const renderStars = (rating: number) => {
           aria-live="polite"
         >
           {{ wishFeedback }}
+        </p>
+        <p
+          v-if="cartFeedback"
+          class="cart-feedback"
+          role="status"
+          aria-live="polite"
+        >
+          {{ cartFeedback }}
         </p>
       </div>
     </div>
@@ -921,7 +1001,8 @@ select {
   cursor: wait;
 }
 
-.wish-feedback {
+.wish-feedback,
+.cart-feedback {
   margin: 10px 0 0;
   padding: 10px 12px;
   font-size: 14px;
