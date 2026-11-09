@@ -17,6 +17,7 @@ function publicApiAllowed(method, pathname) {
   const p=pathname.toLowerCase().replace(/\/{2,}/g,'/');
   if (/^\/api\/admin(?:\/|$)/.test(p)||/^\/api\/(orders|review)\/admin(?:\/|$)/.test(p))return false;
   if (/^\/api\/products(?:\/|$)/.test(p))return ['GET','HEAD'].includes(method);
+  if (/^\/api\/orders\/checkout-mode(?:\/|$)/.test(p))return ['GET','HEAD'].includes(method);
   if (/^\/api\/orders(?:\/|$)/.test(p))return ['GET','HEAD','POST'].includes(method);
   if (/^\/api\/review(?:\/|$)/.test(p))return ['GET','HEAD','POST'].includes(method);
   return /^\/api\/(auth|cart|wishlist|board)(?:\/|$)/.test(p);
@@ -49,13 +50,18 @@ function gateway({root,uploads,admin=false,apiPort=5002,allowlist}) {
     if(!fs.existsSync(file)){res.writeHead(503);return res.end('Run npm run build first')}
     res.setHeader('Content-Type',mime[path.extname(file)]||'application/octet-stream');
     const stat=fs.statSync(file);
+    const ext=path.extname(file);
+    const noStoreLocal=!admin&&process.env.LOCAL_STACK_IMAGE_NO_CACHE==='true'&&['.html','.js','.css'].includes(ext);
     if(image&&process.env.LOCAL_STACK_IMAGE_NO_CACHE==='true'){
       res.setHeader('Cache-Control','no-store, must-revalidate');
       res.setHeader('ETag',`W/"${stat.mtimeMs}-${stat.size}"`);
       res.setHeader('Last-Modified',stat.mtime.toUTCString());
+    }else if(noStoreLocal){
+      res.setHeader('Cache-Control','no-store, must-revalidate');
+      res.setHeader('ETag',`W/"${stat.mtimeMs}-${stat.size}"`);
     }else{
       const imageCache=image?'public, max-age=3600':'public, max-age=3600';
-      if(!admin)res.setHeader('Cache-Control',image?imageCache:path.extname(file)==='.html'?'no-cache':'public, max-age=3600');
+      if(!admin)res.setHeader('Cache-Control',image?imageCache:ext==='.html'?'no-cache':'public, max-age=3600');
     }
     res.setHeader('Content-Length',stat.size);res.writeHead(200);
     if(req.method==='HEAD')return res.end();fs.createReadStream(file).pipe(res);

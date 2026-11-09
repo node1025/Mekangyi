@@ -12,11 +12,20 @@ const userSchema = new Schema({
         match: /^[a-zA-Z0-9]+$/,    // 영문자 + 숫자 조합만 가능
         trim: true          // 문자열 양쪽 공백 제거
     },
-    password: {             // 비밀번호
+    password: {             // 1차 로그인 비밀번호
         type: String,
         required: true,
         minlength: 10,
         match: [            // 영문 + 숫자 + 특수문자 1개 이상 포함
+            /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*]).{10,}$/,
+            '비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다.'
+        ]
+    },
+    adminReauthPassword: {  // 관리자 2차 재인증 비밀번호 (관리자 role만 사용)
+        type: String,
+        required: false,
+        minlength: 10,
+        match: [
             /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*]).{10,}$/,
             '비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다.'
         ]
@@ -128,16 +137,17 @@ const userSchema = new Schema({
     timestamps: true        // createdAt, updatedAt 자동 생성
 });
 
+async function hashIfNeeded(instance, field) {
+    if (!instance.isModified(field) || !instance[field]) return;
+    const salt = await bcrypt.genSalt(10);
+    instance[field] = await bcrypt.hash(instance[field], salt);
+}
+
 // 비밀번호 해싱
 userSchema.pre('save', async function(next) {
-    // 비밀번호가 변경되지 않았다면 해싱할 필요 없음 → 통과
-    if (!this.isModified('password')) {
-        return typeof next === 'function' ? next() : undefined;
-    }
-
     try {
-        const salt = await bcrypt.genSalt(10);
-        this.password = await bcrypt.hash(this.password, salt);
+        await hashIfNeeded(this, 'password');
+        await hashIfNeeded(this, 'adminReauthPassword');
         if (typeof next === 'function') next();
     } catch (err) {
         if (typeof next === 'function') next(err);
@@ -145,10 +155,20 @@ userSchema.pre('save', async function(next) {
     }
 });
 
-// 비밀번호 비교 메서드 (로그인 시 입력한 비밀번호와 DB의 해시값을 비교함)
+// 1차 로그인 비밀번호 비교
 userSchema.methods.comparePassword = async function(candidatePassword) {
     try {
         return await bcrypt.compare(candidatePassword, this.password);
+    } catch (err) {
+        throw new Error(err);
+    }
+};
+
+// 관리자 2차 재인증 비밀번호 비교
+userSchema.methods.compareAdminReauthPassword = async function(candidatePassword) {
+    if (!this.adminReauthPassword) return false;
+    try {
+        return await bcrypt.compare(candidatePassword, this.adminReauthPassword);
     } catch (err) {
         throw new Error(err);
     }

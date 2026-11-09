@@ -9,6 +9,7 @@
     "dev": "nodemon src/app.js",
     "seed:demo": "node scripts/seed-demo.cjs",
     "admin:demo": "node scripts/create-demo-admin.cjs",
+    "admin:reset-password": "node scripts/reset-admin-password.cjs",
     "db:init": "node scripts/init-db.cjs",
     "test:mariadb": "node scripts/run-maria-integration.cjs",
     "options:update": "node scripts/update-goods-options.cjs"

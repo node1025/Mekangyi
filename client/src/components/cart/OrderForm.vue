@@ -168,33 +168,51 @@ const handlePayment = async () => {
         orderData.value.finalOrderPrice = prepared.totalPrice;
         if (!confirm('현재 상품 가격과 배송비를 반영한 결제 금액은 ' + prepared.totalPrice.toLocaleString() + '원입니다. 계속할까요?')) return;
       }
-      await loadPortoneSDK();
-      const PortOne = window.PortOne;
-      if (!PortOne) throw new Error('결제 화면을 불러오지 못했습니다.');
-      const payment = await PortOne.requestPayment({
-        storeId: (import.meta.env.VITE_PORTONE_STORE_ID || ''),
-        channelKey: (import.meta.env.VITE_PORTONE_CHANNEL_KEY || ''),
-        paymentId: prepared.paymentId,
-        orderName: '부캉이 SHOP 주문',
-        totalAmount: prepared.totalPrice,
-        currency: 'CURRENCY_KRW',
-        payMethod: 'CARD',
-        customer: {
-          fullName: shippingAddress.value.receiver,
-          phoneNumber: shippingAddress.value.phone,
-          address: {
-            addressLine1: shippingAddress.value.address,
-            addressLine2: shippingAddress.value.detailAddress
-          },
-          zipcode: shippingAddress.value.zipCode
+      const storeId = (import.meta.env.VITE_PORTONE_STORE_ID || '').trim();
+      const channelKey = (import.meta.env.VITE_PORTONE_CHANNEL_KEY || '').trim();
+      let localPayment = import.meta.env.VITE_LOCAL_PAYMENT === 'true' || (!storeId && !channelKey);
+      try {
+        const mode = await axios.get('/api/orders/checkout-mode');
+        if (mode.data?.localPayment === true) localPayment = true;
+      } catch { /* checkout-mode unavailable — fall back to build flags */ }
+      if (localPayment) {
+        const ok = confirm(
+          `[로컬 테스트 결제]\n실제 카드 결제 없이 ${prepared.totalPrice.toLocaleString()}원 주문을 확정할까요?\n(PortOne 키 없이 VS Code 로컬 스택용)`
+        );
+        if (!ok) return;
+        rememberPayment(prepared.paymentId);
+      } else {
+        if (!storeId || !channelKey) {
+          throw new Error('PortOne storeId·channelKey가 설정되지 않았습니다. VS Code에서 ★ 로컬 실행 태스크로 다시 빌드하거나 .env에 VITE_PORTONE_* 값을 넣어주세요.');
         }
-      });
-      if (!payment || payment.code !== undefined) {
-        alert(payment?.message || '결제가 취소되었습니다.');
-        return;
+        await loadPortoneSDK();
+        const PortOne = window.PortOne;
+        if (!PortOne) throw new Error('결제 화면을 불러오지 못했습니다.');
+        const payment = await PortOne.requestPayment({
+          storeId,
+          channelKey,
+          paymentId: prepared.paymentId,
+          orderName: '부캉이 SHOP 주문',
+          totalAmount: prepared.totalPrice,
+          currency: 'CURRENCY_KRW',
+          payMethod: 'CARD',
+          customer: {
+            fullName: shippingAddress.value.receiver,
+            phoneNumber: shippingAddress.value.phone,
+            address: {
+              addressLine1: shippingAddress.value.address,
+              addressLine2: shippingAddress.value.detailAddress
+            },
+            zipcode: shippingAddress.value.zipCode
+          }
+        });
+        if (!payment || payment.code !== undefined) {
+          alert(payment?.message || '결제가 취소되었습니다.');
+          return;
+        }
+        if (payment.paymentId !== prepared.paymentId) throw new Error('결제 주문번호를 확인하지 못했습니다.');
+        rememberPayment(prepared.paymentId);
       }
-      if (payment.paymentId !== prepared.paymentId) throw new Error('결제 주문번호를 확인하지 못했습니다.');
-      rememberPayment(prepared.paymentId);
     }
     await axios.post('/api/orders', { paymentId: confirmedPaymentId.value });
     rememberPayment(null);

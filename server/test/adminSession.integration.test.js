@@ -12,8 +12,9 @@ test('administrator reauthentication is enforced by MariaDB-backed APIs', { skip
   t.after(() => maria.disconnect());
   for (const model of models) await model.deleteMany({});
   const password = 'AdminSecret123!';
+  const adminReauthPassword = 'AdminReauth456!';
   const input = { password, name: 'Admin fixture', phone: '00000000000', birthDate: '2000-01-01', address: { zipCode: '00000', basicAddress: 'Test', detailAddress: 'Test' }, termsOfService: { agreeTermsOfService: true, agreePrivacyPolicy: true } };
-  const admin = await User.create({ ...input, userId: 'adminTest', email: 'admin@example.com', role: 'admin' });
+  const admin = await User.create({ ...input, userId: 'adminTest', email: 'admin@example.com', role: 'admin', adminReauthPassword });
   const member = await User.create({ ...input, userId: 'memberTest', email: 'member@example.com' });
   const product = await Product.create({ name: { ko: '보호 상품' }, productCode: 'ADMIN-TEST', basePrice: 10000, material: 'test' });
   const token = (user, jwtid) => jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h', jwtid });
@@ -30,7 +31,7 @@ test('administrator reauthentication is enforced by MariaDB-backed APIs', { skip
     return { status:response.status, data:await response.json(), cookie:response.headers.get('set-cookie') };
   }
   async function login() {
-    const result = await request('/api/admin/session','POST',{userId:admin.userId,password});
+    const result = await request('/api/admin/session','POST',{userId:admin.userId,reauthPassword:adminReauthPassword});
     assert.equal(result.status,200,JSON.stringify(result.data));
     assert.match(result.cookie,/HttpOnly/i); assert.match(result.cookie,/SameSite=Strict/i); assert.match(result.cookie,/Path=\/api/i);
     return result.cookie.split(';')[0];
@@ -44,7 +45,8 @@ test('administrator reauthentication is enforced by MariaDB-backed APIs', { skip
   });
   await t.test('non-admins and wrong passwords cannot obtain a privileged session', async () => {
     assert.equal((await request('/api/admin/session','POST',{userId:member.userId,password},memberToken)).status,403);
-    assert.equal((await request('/api/admin/session','POST',{userId:admin.userId,password:'wrong'})).status,403);
+    assert.equal((await request('/api/admin/session','POST',{userId:admin.userId,reauthPassword:password})).status,403);
+    assert.equal((await request('/api/admin/session','POST',{userId:admin.userId,reauthPassword:'wrong-reauth'})).status,403);
     assert.equal(await AdminSession.countDocuments(),0);
   });
   await t.test('reauthentication permits admin APIs and stores only an opaque token hash', async () => {
@@ -57,7 +59,7 @@ test('administrator reauthentication is enforced by MariaDB-backed APIs', { skip
   await t.test('sessions are bound to the exact first login token and account', async () => {
     assert.equal((await request('/api/admin/session','GET',undefined,otherToken,cookie)).status,403);
     assert.equal((await request('/api/admin/session','GET',undefined,memberToken,cookie)).status,403);
-    assert.equal((await request('/api/admin/session','POST',{userId:member.userId,password})).status,403);
+    assert.equal((await request('/api/admin/session','POST',{userId:member.userId,reauthPassword:adminReauthPassword})).status,403);
   });
   await t.test('account demotion, deactivation and password changes revoke access immediately', async () => {
     const original=await User.findById(admin.id);
@@ -67,6 +69,9 @@ test('administrator reauthentication is enforced by MariaDB-backed APIs', { skip
     assert.equal((await request('/api/admin/session','GET',undefined,adminToken,cookie)).status,403);
     await User.updateOne({_id:admin.id},{$set:{isActivated:true}});
     const doc=await User.findById(admin.id); doc.password='NewSecret123!'; await doc.save();
+    assert.equal((await request('/api/admin/session','GET',undefined,adminToken,cookie)).status,403);
+    cookie=await login();
+    const reauthDoc=await User.findById(admin.id); reauthDoc.adminReauthPassword='NewReauth789!'; await reauthDoc.save();
     assert.equal((await request('/api/admin/session','GET',undefined,adminToken,cookie)).status,403);
     // Restore the fixture through the migration path so the original bcrypt hash is preserved.
     await User.deleteOne({_id:admin.id}); await maria.transaction(session=>User.importRows([original.toObject()],session));

@@ -1,4 +1,5 @@
 const User = require('../models/user'); // User 스키마 불러오기
+const AdminSession = require('../models/adminSession');
 const jwt = require('jsonwebtoken');    // JWT 생성 및 검증을 위한 jsonwebtoken 모듈 불러오기
 const { pick } = require('../utils/input');
 const passwordResetController = require('./passwordResetController');
@@ -7,6 +8,7 @@ const profileFields = ['name', 'email', 'phone', 'address', 'gender', 'birthDate
 const publicUser = user => {
     const result = user.toObject();
     delete result.password;
+    delete result.adminReauthPassword;
     delete result.refreshToken;
     return result;
 };
@@ -219,6 +221,9 @@ exports.updatePassword = async (req, res) => {
         user.password = newPassword;        // 새 비밀번호 설정 (save 호출 시 pre-save 훅에 의해 자동 해싱됨)
         user.refreshToken = undefined;      // 비밀번호 변경 시 보안을 위해 기존 리프레시 토큰 무효화
         await user.save();                  // 변경 사항 저장
+        if (user.role === 'admin') {
+            await AdminSession.deleteMany({ userId: user._id });
+        }
 
         res.clearCookie('refreshToken');    // 클라이언트에 저장된 Refresh Token 쿠키 제거
         res.status(200).json({ message: '비밀번호가 변경되었습니다. 다시 로그인해 주세요.' });
@@ -244,6 +249,14 @@ exports.withdraw = async (req, res) => {
         // 비밀번호 확인
         const isMatch = await user.comparePassword(password);
         if (!isMatch) return res.status(401).json({ message: '비밀번호가 일치하지 않아 탈퇴할 수 없습니다.' });
+
+        if (user.role === 'admin') {
+            const adminCount = await User.countDocuments({ role: 'admin', isActivated: true });
+            if (adminCount <= 1) {
+                return res.status(400).json({ message: '마지막 관리자 계정은 삭제할 수 없습니다. 다른 관리자를 만든 뒤 시도해주세요.' });
+            }
+            await AdminSession.deleteMany({ userId: user._id });
+        }
 
         await User.findByIdAndDelete(userId);   // 사용자 계정 삭제
         res.clearCookie('refreshToken');        // 클라이언트에 저장된 Refresh Token 쿠키 제거

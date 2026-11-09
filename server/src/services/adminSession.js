@@ -16,7 +16,8 @@ async function verify(req) {
   const session = await AdminSession.findOne({ tokenHash: hash(token), userId: req.user.id, expiresAt: { $gt: new Date() } });
   if (!session || session.accessTokenHash !== hash(bearer(req))) return null;
   const user = await User.findById(req.user.id);
-  if (!user || user.role !== 'admin' || !user.isActivated || session.passwordFingerprint !== hash(user.password)) return null;
+  if (!user || user.role !== 'admin' || !user.isActivated || !user.adminReauthPassword) return null;
+  if (session.passwordFingerprint !== hash(user.adminReauthPassword)) return null;
   return session;
 }
 exports.requireAdmin = async (req, res, next) => {
@@ -36,21 +37,38 @@ exports.ifAdmin = (req, res, next) => req.user?.role === 'admin' ? exports.requi
 exports.create = async (req, res) => {
   res.set('Cache-Control', 'no-store');
   if (!adminNetwork.allowed(req)) return res.status(403).json({ message: '허용된 관리자 네트워크에서 접속해주세요.' });
-  const { userId, password } = req.body || {};
-  if (typeof userId !== 'string' || typeof password !== 'string' || Buffer.byteLength(password) > 72) return res.status(400).json({ message: '관리자 아이디와 비밀번호를 입력해주세요.' });
+  const { userId, reauthPassword, password: legacyPassword } = req.body || {};
+  const reauth = typeof reauthPassword === 'string' ? reauthPassword : legacyPassword;
+  if (typeof userId !== 'string' || typeof reauth !== 'string' || Buffer.byteLength(reauth) > 72) {
+    return res.status(400).json({ message: '관리자 아이디와 2차 재인증 비밀번호를 입력해주세요.' });
+  }
   try {
     const user = await User.findById(req.user.id);
-    if (!user || req.user.role !== 'admin' || user.role !== 'admin' || !user.isActivated || user.userId !== userId || !(await user.comparePassword(password))) {
+    if (!user || req.user.role !== 'admin' || user.role !== 'admin' || !user.isActivated || user.userId !== userId) {
       return res.status(403).json({ message: '관리자 인증 정보를 확인해주세요.' });
+    }
+    if (!user.adminReauthPassword) {
+      return res.status(403).json({ message: '2차 비밀번호가 설정되지 않았습니다. npm run admin:reset-password 로 1·2차 비밀번호를 설정해주세요.' });
+    }
+    if (!(await user.compareAdminReauthPassword(reauth))) {
+      return res.status(403).json({ message: '2차 재인증 비밀번호를 확인해주세요.' });
     }
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + DURATION);
     await maria.transaction(async session => {
       // Lock the account so parallel reauthentication cannot leave multiple sessions behind.
       const current = await User.findById(user._id).session(session);
-      if (!current || current.role !== 'admin' || !current.isActivated || current.password !== user.password) throw new Error('Account changed');
+      if (!current || current.role !== 'admin' || !current.isActivated || current.adminReauthPassword !== user.adminReauthPassword) {
+        throw new Error('Account changed');
+      }
       await AdminSession.deleteMany({ userId: user._id }).session(session);
-      await AdminSession.create({ userId: user._id, tokenHash: hash(token), accessTokenHash: hash(bearer(req)), passwordFingerprint: hash(user.password), expiresAt }, { session });
+      await AdminSession.create({
+        userId: user._id,
+        tokenHash: hash(token),
+        accessTokenHash: hash(bearer(req)),
+        passwordFingerprint: hash(user.adminReauthPassword),
+        expiresAt
+      }, { session });
     });
     res.cookie(COOKIE, token, { ...cookieOptions(), maxAge: DURATION });
     res.status(200).json({ message: '관리자 인증을 완료했습니다.', expiresAt });

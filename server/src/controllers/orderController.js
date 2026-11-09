@@ -12,6 +12,10 @@ const reportError = (res, error, extra = {}) => {
 const paymentIdValid = id => typeof id === 'string' && /^ord_[a-f0-9-]{36}$/.test(id);
 const owns = (order, userId) => order.userId.toString() === userId.toString();
 
+exports.checkoutMode = (_req, res) => {
+  res.json({ localPayment: gateway.localPaymentEnabled() });
+};
+
 exports.prepareOrder = async (req, res) => {
   try {
     const address = inventory.shippingAddress(req.body?.shippingAddress);

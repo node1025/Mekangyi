@@ -6,6 +6,7 @@ import Products from '../components/admin/Products.vue';
 import OrderManagement from '../components/admin/OrderManagement.vue';
 import ReviewList from '../components/admin/ReviewList.vue';
 import BoardList from '../components/admin/BoardList.vue';
+import AccountSettings from '../components/admin/AccountSettings.vue';
 
 const router = useRouter();
 const secondsLeft = ref(0);
@@ -38,7 +39,8 @@ const menuItems = [
     children: [
       { id: 'orders', label: '주문 상태 관리' },
       { id: 'claims', label: '클레임 관리' },
-      { id: 'users', label: '고객 관리' }
+      { id: 'users', label: '고객 관리' },
+      { id: 'account', label: '계정 설정' }
     ]
   },
   { 
@@ -59,6 +61,7 @@ const menuTitles: Record<string, string> = {
   users: '고객 관리 (등급/적립금/블랙리스트)',
   notice: '게시글 관리',
   review: '상품 리뷰 관리',
+  account: '관리자 계정 설정',
 };
 
 // 현재 선택된 메뉴 ID에 따라 화면 타이틀을 동적으로 계산
@@ -129,6 +132,10 @@ const selectMenu = (id: string) => {
         
         <div v-else-if="activeMenu === 'notice'" class="product-management-container">
           <BoardList />
+        </div>
+
+        <div v-else-if="activeMenu === 'account'" class="product-management-container">
+          <AccountSettings />
         </div>
 
         <div v-else class="data-table-placeholder">

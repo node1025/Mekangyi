@@ -7,6 +7,8 @@ const { authMiddleware, isAdmin } = require('../middleware/authMiddleware');    
  * 사용자 라우트 (로그인 필요)
  * ------------------------------------------------ */
 
+router.get('/checkout-mode', orderController.checkoutMode);
+
 // 주문 생성
 router.post('/prepare', authMiddleware, orderController.prepareOrder);
 router.post('/', authMiddleware, orderController.createOrder);
