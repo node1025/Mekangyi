@@ -125,18 +125,14 @@ test('cart quantity change rejects stock shortage', async t => {
   assert.equal(res.statusCode, 400);
 });
 
-test('cart quantity change preserves owner filter and schema validation', async t => {
-  t.mock.method(Cart, 'findOne', async () => ({ items: [{ _id: id, variantId, size: '프리' }] }));
+test('cart quantity change updates item quantity via save', async t => {
+  const cartDoc = { items: [{ _id: id, variantId, size: '프리', quantity: 1 }], save: async function () { return this; } };
+  t.mock.method(Cart, 'findOne', async () => cartDoc);
   t.mock.method(Inventory, 'findOne', async () => ({ stockQuantity: 5 }));
-  t.mock.method(Cart, 'findOneAndUpdate', async (filter, update, options) => {
-    assert.deepEqual(filter, { userId: id, 'items._id': id });
-    assert.equal(update.$set['items.$.quantity'], 3);
-    assert.equal(options.runValidators, true);
-    return { items: [] };
-  });
   const res = response();
   await cart.updateQuantity({ user: { id }, body: { itemId: id, quantity: 3 } }, res);
   assert.equal(res.statusCode, 200);
+  assert.equal(cartDoc.items[0].quantity, 3);
 });
 
 test('search treats regex metacharacters as literal text', () => {

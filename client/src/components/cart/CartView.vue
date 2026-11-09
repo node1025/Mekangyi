@@ -70,8 +70,9 @@ const updateQty = async (itemId: string, newQty: number) => {
       item.quantity = newQty;
       emitCartUpdate(); // 헤더 숫자 갱신
     }
-  } catch (error) {
-    alert("수량 변경에 실패했습니다.");
+  } catch (error: any) {
+    alert(error.response?.data?.message || '수량 변경에 실패했습니다.');
+    await fetchCart();
   }
 };
 
@@ -85,8 +86,8 @@ const deleteItem = async (itemId: string) => {
     });
     cartItems.value = cartItems.value.filter(i => i._id !== itemId);
     emitCartUpdate();
-  } catch (error) {
-    alert("삭제 실패");
+  } catch (error: any) {
+    alert(error.response?.data?.message || '삭제에 실패했습니다.');
   }
 };
 

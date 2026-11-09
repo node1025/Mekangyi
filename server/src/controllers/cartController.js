@@ -3,6 +3,17 @@ const Product = require('../models/product/product');
 const ProductVariant = require('../models/product/productvariant');
 const Inventory = require('../models/product/inventory');
 const { isObjectIdOrHexString, ObjectId } = require('../models/mariaSchema');
+
+function ensureCartItemIds(cart) {
+  let fixed = false;
+  for (const row of cart.items) {
+    if (!row._id) {
+      row._id = new ObjectId().toString();
+      fixed = true;
+    }
+  }
+  return fixed;
+}
 const { isQuantity } = require('../utils/input');
 const { salePriceFromProduct, enrichProductForResponse } = require('../utils/productPricing');
 
@@ -84,7 +95,7 @@ exports.getCart = async (req, res) => {
         }
       }
     }
-    if (priceAdjusted) await cart.save();
+    if (ensureCartItemIds(cart) || priceAdjusted) await cart.save();
     const payload = cart.toObject();
     for (const row of payload.items) {
       if (row.productId && typeof row.productId === 'object') {
@@ -105,37 +116,42 @@ exports.updateQuantity = async (req, res) => {
     return res.status(400).json({ message: '올바른 항목과 양의 정수 수량을 입력해주세요.' });
   }
   try {
-    const existingCart = await Cart.findOne({ userId: req.user.id, 'items._id': itemId });
-    const item = existingCart?.items.find(entry => entry._id.toString() === itemId);
-    if (!item) return res.status(404).json({ message: '장바구니 항목을 찾을 수 없습니다.' });
+    const cart = await Cart.findOne({ userId: req.user.id });
+    if (!cart) return res.status(404).json({ message: '장바구니가 없습니다.' });
+    ensureCartItemIds(cart);
+    const index = cart.items.findIndex((entry) => String(entry._id) === String(itemId));
+    if (index < 0) return res.status(404).json({ message: '장바구니 항목을 찾을 수 없습니다.' });
+    const item = cart.items[index];
     const inventory = await Inventory.findOne({ variantId: item.variantId, size: item.size });
     if (!inventory || quantity > inventory.stockQuantity) {
       return res.status(400).json({ message: '재고 수량을 초과했습니다.' });
     }
-    const cart = await Cart.findOneAndUpdate(
-      { userId: req.user.id, "items._id": itemId },
-      { $set: { "items.$.quantity": quantity } },
-      { new: true, runValidators: true }
-    );
-    if (!cart) return res.status(404).json({ message: '장바구니 항목을 찾을 수 없습니다.' });
+    item.quantity = quantity;
+    await cart.save();
     res.status(200).json(cart);
   } catch (error) {
-    res.status(500).json({ message: "수량 변경 실패" });
+    res.status(500).json({ message: '수량 변경 실패' });
   }
 };
 
 // [DELETE] 항목 삭제
 exports.removeItem = async (req, res) => {
   const { itemId } = req.params;
+  if (!isObjectIdOrHexString(itemId)) {
+    return res.status(400).json({ message: '올바른 장바구니 항목 ID가 아닙니다.' });
+  }
   try {
-    const cart = await Cart.findOneAndUpdate(
-      { userId: req.user.id },
-      { $pull: { items: { _id: itemId } } },
-      { new: true }
-    );
+    const cart = await Cart.findOne({ userId: req.user.id });
+    if (!cart) return res.status(404).json({ message: '장바구니가 없습니다.' });
+    const before = cart.items.length;
+    cart.items = cart.items.filter((entry) => String(entry._id) !== String(itemId));
+    if (cart.items.length === before) {
+      return res.status(404).json({ message: '장바구니 항목을 찾을 수 없습니다.' });
+    }
+    await cart.save();
     res.status(200).json(cart);
   } catch (error) {
-    res.status(500).json({ message: "삭제 실패" });
+    res.status(500).json({ message: '삭제 실패' });
   }
 };
 
