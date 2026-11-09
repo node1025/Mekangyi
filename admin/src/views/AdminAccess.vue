@@ -2,7 +2,10 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import { adminPaths } from '../config/adminRoutes';
+
 const router = useRouter();
+const loginWithRedirect = `${adminPaths.login}?redirect=${encodeURIComponent(adminPaths.gate)}`;
 const state = ref<'checking'|'guest'|'forbidden'|'ready'|'error'>('checking');
 const userId = ref('');
 const password = ref('');
@@ -25,7 +28,8 @@ async function authenticate() {
   busy.value = true; message.value = '';
   try {
     await axios.post('/api/admin/session', { userId: userId.value, reauthPassword: password.value });
-    password.value = ''; await router.replace('/admin');
+    password.value = '';
+    await router.replace(adminPaths.console);
   } catch (error: any) {
     message.value = error.response?.data?.message || '인증 서버에 연결하지 못했습니다.';
     password.value = '';
@@ -41,10 +45,10 @@ onMounted(inspect);
 onUnmounted(() => clearInterval(timer));
 </script>
 <template>
-  <div class="admin-access"><aside class="access-story"><span class="access-eyebrow">부캉이 / OPERATIONS</span><h1>조금 더 안전한<br /><em>운영의 시작.</em></h1><p>관리자 전용 공간입니다.<br />계정을 확인한 뒤 한 번 더 인증해주세요.</p><ol><li><span>01</span><div><strong>관리자 계정 로그인</strong><p>관리자 계정으로 로그인합니다.</p></div></li><li><span>02</span><div><strong>2차 운영 비밀번호</strong><p>1차와 다른 재인증 비밀번호로 입장합니다.</p></div></li></ol><RouterLink to="/login">← 관리자 로그인</RouterLink></aside>
+  <div class="admin-access"><aside class="access-story"><span class="access-eyebrow">부캉이 / OPERATIONS</span><h1>조금 더 안전한<br /><em>운영의 시작.</em></h1><p>관리자 전용 공간입니다.<br />계정을 확인한 뒤 한 번 더 인증해주세요.</p><ol><li><span>01</span><div><strong>관리자 계정 로그인</strong><p>관리자 계정으로 로그인합니다.</p></div></li><li><span>02</span><div><strong>2차 운영 비밀번호</strong><p>1차와 다른 재인증 비밀번호로 입장합니다.</p></div></li></ol><RouterLink :to="adminPaths.login">← 관리자 로그인</RouterLink></aside>
     <section class="access-panel" aria-labelledby="admin-title"><span class="access-eyebrow">AUTHORIZED PERSONNEL ONLY</span><h2 id="admin-title">관리자 전용 로그인</h2><p class="panel-description">상품과 고객 정보를 안전하게 관리하는 공간</p>
       <p v-if="state === 'checking'" role="status">접근 권한을 확인하고 있습니다.</p>
-      <div v-else-if="state === 'guest'" class="access-state"><span class="step-label">STEP 01</span><h3>먼저 로그인해주세요.</h3><p>관리자 권한이 있는 회원 계정이 필요합니다.</p><RouterLink class="access-primary" to="/login?redirect=/admin/access">관리자 계정 로그인으로 이동 ↗</RouterLink></div>
+      <div v-else-if="state === 'guest'" class="access-state"><span class="step-label">STEP 01</span><h3>먼저 로그인해주세요.</h3><p>관리자 권한이 있는 회원 계정이 필요합니다.</p><RouterLink class="access-primary" :to="loginWithRedirect">관리자 계정 로그인으로 이동 ↗</RouterLink></div>
       <div v-else-if="state === 'forbidden'" class="access-state" role="alert"><h3>관리자 권한이 없습니다.</h3><p>이 계정으로는 관리자 공간에 접근할 수 없습니다.</p><RouterLink to="/" class="access-primary">로그인 화면으로 이동</RouterLink></div>
       <div v-else-if="state === 'error'" class="access-state" role="alert"><p>접근 권한을 확인하지 못했습니다.</p><button @click="inspect" class="access-primary">다시 확인</button></div>
       <form v-else @submit.prevent="authenticate"><span class="step-label">STEP 02 · 2차 재인증</span><label for="admin-account">관리자 아이디</label><input id="admin-account" :value="userId" readonly autocomplete="username" /><label for="admin-password">2차 운영 비밀번호</label><input id="admin-password" v-model="password" type="password" autocomplete="off" required maxlength="72" placeholder="1차 로그인과 다른 2차 비밀번호" /><p v-if="message" class="access-error" role="alert">{{ message }}</p><button class="access-primary" :disabled="busy || cooldown > 0">{{ busy ? '인증 확인 중…' : cooldown ? `${cooldown}초 후 다시 시도` : '인증하고 관리자 페이지 입장 ↗' }}</button><p class="session-note">인증 후 15분 동안 관리 기능을 사용할 수 있습니다.<br />공용 기기에서는 사용 후 관리자 세션을 잠가주세요.</p></form>

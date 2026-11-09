@@ -17,7 +17,9 @@
     "test:mariadb": "npm --prefix server run test:mariadb",
     "dev:shop": "npm --prefix client run dev",
     "dev:admin": "npm --prefix admin run dev",
-    "options:update": "npm --prefix server run options:update"
+    "options:update": "npm --prefix server run options:update",
+    "ratings:sync": "npm --prefix server run ratings:sync",
+    "admin:route-slug": "node scripts/generate-admin-route.cjs"
   },
   "keywords": [],
   "author": "",

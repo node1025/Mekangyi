@@ -1,5 +1,6 @@
 const Review = require('../models/review');
 const Order = require('../models/order');
+const { syncProductRating } = require('../utils/productRating');
 
 // [POST] 리뷰 작성
 exports.createReview = async (req, res) => {
@@ -39,6 +40,8 @@ exports.createReview = async (req, res) => {
         $set: { "items.$.isReviewed": true } 
       }
     );
+
+    await syncProductRating(productId);
 
     res.status(201).json({ success: true, review: newReview });
   } catch (error) {
@@ -106,6 +109,8 @@ exports.deleteReview = async (req, res) => {
         $set: { "items.$.isReviewed": false } 
       }
     );
+
+    await syncProductRating(review.productId);
 
     res.json({ success: true, message: "리뷰가 성공적으로 삭제되었습니다." });
   } catch (error) {

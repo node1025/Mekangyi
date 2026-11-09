@@ -2,10 +2,13 @@ import axios from 'axios';
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
-const api = axios.create({
+/** 게시판 API (보호 세션 연장 인터셉터 대상 — main.ts에서 등록) */
+export const boardHttp = axios.create({
   baseURL: `${BASE_URL}/api/board`,
   withCredentials: true // 쿠키 전송용
 });
+
+const api = boardHttp;
 
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('accessToken');

@@ -12,7 +12,8 @@
     "admin:reset-password": "node scripts/reset-admin-password.cjs",
     "db:init": "node scripts/init-db.cjs",
     "test:mariadb": "node scripts/run-maria-integration.cjs",
-    "options:update": "node scripts/update-goods-options.cjs"
+    "options:update": "node scripts/update-goods-options.cjs",
+    "ratings:sync": "node scripts/sync-product-ratings.cjs"
   },
   "keywords": [],
   "author": "",

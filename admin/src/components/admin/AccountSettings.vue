@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { useUserStore } from '../../utils/userStore';
+import { adminPaths } from '../../config/adminRoutes';
 
 const router = useRouter();
 const store = useUserStore();
@@ -88,7 +89,7 @@ async function changePassword() {
     newPassword.value = '';
     confirmPassword.value = '';
     store.logout();
-    await router.replace('/login');
+    await router.replace(adminPaths.login);
   } catch (e: any) {
     pwdError.value = e.response?.data?.message || '비밀번호 변경에 실패했습니다.';
   } finally {
@@ -133,7 +134,7 @@ async function changeReauthPassword() {
     } catch {
       /* ignore */
     }
-    await router.replace('/admin/access');
+    await router.replace(adminPaths.gate);
   } catch (e: any) {
     reauthError.value = e.response?.data?.message || '2차 비밀번호 변경에 실패했습니다.';
   } finally {
@@ -158,7 +159,7 @@ async function deleteAccount() {
     });
     store.logout();
     alert('관리자 계정이 삭제되었습니다.');
-    await router.replace('/login');
+    await router.replace(adminPaths.login);
   } catch (e: any) {
     withdrawError.value = e.response?.data?.message || '계정 삭제에 실패했습니다.';
     withdrawPassword.value = '';

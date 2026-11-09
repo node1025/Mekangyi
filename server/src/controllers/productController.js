@@ -16,6 +16,50 @@ function parseOptionalEventDate(value) {
   return d;
 }
 
+function duplicateKeyMessage(error) {
+  if (error?.code !== 11000 && error?.errno !== 1062) return null;
+  const text = String(error.message || '');
+  if (/products|productCode/i.test(text)) {
+    return '이미 사용 중인 상품 코드입니다. 다른 코드를 쓰거나, 목록에서 기존 상품을 수정·삭제해주세요.';
+  }
+  if (/productvariants|variantCode/i.test(text)) {
+    return '이미 사용 중인 옵션(색상) 코드입니다.';
+  }
+  if (/inventories|sku/i.test(text)) {
+    return '이미 사용 중인 SKU(사이즈) 코드입니다.';
+  }
+  return '이미 등록된 코드가 있어 저장할 수 없습니다.';
+}
+
+function normalizeVariantCode(productCode, variant) {
+  return (variant.variantCode || `${productCode}-${variant.color}`)
+    .toUpperCase()
+    .replace(/\s/g, '');
+}
+
+async function assertNewProductCodes(session, productCode, variants = []) {
+  const code = String(productCode || '').trim();
+  if (!code) {
+    throw Object.assign(new Error('상품 코드는 필수입니다.'), { status: 400 });
+  }
+  const existingProduct = await Product.findOne({ productCode: code }).session(session);
+  if (existingProduct) {
+    throw Object.assign(new Error(`상품 코드 "${code}"는 이미 사용 중입니다.`), { status: 409 });
+  }
+  const seenVariants = new Set();
+  for (const variant of variants) {
+    const vCode = normalizeVariantCode(code, variant);
+    if (seenVariants.has(vCode)) {
+      throw Object.assign(new Error(`옵션 코드 "${vCode}"가 이 상품 안에서 중복되었습니다.`), { status: 400 });
+    }
+    seenVariants.add(vCode);
+    const existingVariant = await ProductVariant.findOne({ variantCode: vCode }).session(session);
+    if (existingVariant) {
+      throw Object.assign(new Error(`옵션 코드 "${vCode}"는 이미 다른 상품에서 사용 중입니다.`), { status: 409 });
+    }
+  }
+}
+
 function applyProductPayloadToDoc(product, productData) {
   const editable = [
     'name', 'category', 'basePrice', 'discountRate', 'description', 'material',
@@ -52,10 +96,17 @@ exports.createFullProduct = async (req, res) => {
             throw new Error("전송된 데이터 형식이 올바르지 않습니다.");
         }
 
+        if (!Array.isArray(variants) || variants.length === 0) {
+            throw Object.assign(new Error('색상·사이즈 옵션을 1개 이상 등록해주세요.'), { status: 400 });
+        }
+
+        const productCode = String(productData.productCode || '').trim();
+        await assertNewProductCodes(session, productCode, variants);
+
         // Product 생성
         const product = new Product({});
         applyProductPayloadToDoc(product, productData);
-        if (productData.productCode) product.set('productCode', String(productData.productCode).trim());
+        product.set('productCode', productCode);
         await product.save({ session });
 
         // 공통 이미지 추출
@@ -72,8 +123,7 @@ exports.createFullProduct = async (req, res) => {
             const finalGallery = vGallery.length > 0 ? vGallery : commonGallery;
 
             // 옵션 코드 생성 (대문자 + 공백 제거)
-            const vCode = (v.variantCode || `${productData.productCode}-${v.color}`)
-                            .toUpperCase().replace(/\s/g, '');
+            const vCode = normalizeVariantCode(productCode, v);
             // Variant 저장
             const newVariant = new ProductVariant({
                 productId: product._id,
@@ -103,7 +153,10 @@ exports.createFullProduct = async (req, res) => {
 
     } catch (error) {
         await session.abortTransaction();   // 오류 발생 시 전체 롤백
-        res.status(500).json({ message: "등록 중 오류 발생", error: error.message });
+        const dup = duplicateKeyMessage(error);
+        const status = error.status || (dup ? 409 : 500);
+        const message = dup || (error.status ? error.message : '등록 중 오류가 발생했습니다.');
+        res.status(status).json({ message });
     } finally {
         await session.endSession();               // 세션 종료
     }

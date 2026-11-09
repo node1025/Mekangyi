@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { ref, computed } from 'vue';
+import { adminPaths } from '../config/adminRoutes';
 
 export const SESSION_DURATION = 3600 * 1000; // 1시간 (밀리초)
 
@@ -30,7 +31,7 @@ const logout = (showAlert = false) => {
 
   if (showAlert) {
     alert('세션이 만료되어 자동으로 로그아웃되었습니다.');
-    window.location.href = '/login'; // 로그인 페이지로 이동 (선택 사항)
+    window.location.href = adminPaths.login;
   }
 };
 

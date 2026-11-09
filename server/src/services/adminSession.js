@@ -83,4 +83,39 @@ exports.destroy = async (req, res) => {
     res.json({ message: '관리자 세션을 종료했습니다.' });
   } catch { res.status(503).json({ message: '관리자 세션을 종료하지 못했습니다.' }); }
 };
-exports.inspect = (req, res) => res.json({ authorized: true, expiresAt: req.adminSession.expiresAt });
+exports.inspect = async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const session = await verify(req);
+    if (!session) {
+      return res.status(403).json({ code: 'ADMIN_REAUTH_REQUIRED', message: '관리자 전용 로그인에서 다시 인증해주세요.' });
+    }
+    res.json({ authorized: true, expiresAt: session.expiresAt });
+  } catch {
+    res.status(503).json({ message: '관리자 인증을 확인할 수 없습니다.' });
+  }
+};
+
+/** 관리 콘솔 변경 API 성공 시 보호 세션 만료 시각을 15분으로 다시 시작 (클레임·고객관리 화면 제외) */
+exports.refresh = async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const session = await verify(req);
+    if (!session) {
+      return res.status(403).json({ code: 'ADMIN_REAUTH_REQUIRED', message: '관리자 전용 로그인에서 다시 인증해주세요.' });
+    }
+    const expiresAt = new Date(Date.now() + DURATION);
+    const token = req.cookies?.[COOKIE];
+    if (typeof token !== 'string') {
+      return res.status(403).json({ code: 'ADMIN_REAUTH_REQUIRED', message: '관리자 전용 로그인에서 다시 인증해주세요.' });
+    }
+    await AdminSession.updateOne(
+      { tokenHash: hash(token), userId: req.user.id },
+      { $set: { expiresAt } }
+    );
+    res.cookie(COOKIE, token, { ...cookieOptions(), maxAge: DURATION });
+    res.json({ message: '관리자 보호 세션이 초기화되었습니다.', expiresAt });
+  } catch {
+    res.status(503).json({ message: '관리자 세션을 갱신하지 못했습니다.' });
+  }
+};

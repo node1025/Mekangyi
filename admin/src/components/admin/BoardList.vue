@@ -4,7 +4,6 @@ import { ref, onMounted } from 'vue';
 import { boardApi } from '../../utils/boardApi';
 import BoardWrite from '../admin/BoardWrite.vue';
 import BoardDetailPanel from '../admin/BoardDetailPanel.vue';
-
 // 게시글 데이터 타입 정의
 interface Post {
   _id: string;
@@ -63,8 +62,8 @@ const fetchPosts = async () => {
 
 // 글쓰기 완료 후 처리
 const handleSaved = () => {
-  isModalOpen.value = false;    // 글쓰기 모달 닫기
-  fetchPosts();                 // 목록 새로고침
+  isModalOpen.value = false;
+  fetchPosts();
 };
 
 onMounted(fetchPosts);          // 컴포넌트 마운트 시 실행

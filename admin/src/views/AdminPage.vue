@@ -7,22 +7,59 @@ import OrderManagement from '../components/admin/OrderManagement.vue';
 import ReviewList from '../components/admin/ReviewList.vue';
 import BoardList from '../components/admin/BoardList.vue';
 import AccountSettings from '../components/admin/AccountSettings.vue';
+import { adminPaths } from '../config/adminRoutes';
+import {
+  registerAdminSessionClock,
+  setAdminConsoleMenu,
+  unregisterAdminSessionClock,
+} from '../utils/adminSessionRefresh';
 
 const router = useRouter();
 const secondsLeft = ref(0);
 let sessionTimer: ReturnType<typeof setInterval> | undefined;
-async function lockAdmin() { try { await axios.delete('/api/admin/session'); await router.replace('/admin/access'); } catch { alert('세션 잠금을 완료하지 못했습니다. 다시 시도해주세요.'); } }
-onMounted(async () => {
+let sessionEndsAtMs = 0;
+
+function bindSessionClock(expiresAt: string) {
+  clearInterval(sessionTimer);
+  sessionEndsAtMs = Date.parse(expiresAt);
+  if (!Number.isFinite(sessionEndsAtMs)) return;
+  const tick = () => {
+    secondsLeft.value = Math.max(0, Math.ceil((sessionEndsAtMs - Date.now()) / 1000));
+    if (!secondsLeft.value) {
+      clearInterval(sessionTimer);
+      void router.replace(adminPaths.gate);
+    }
+  };
+  tick();
+  sessionTimer = setInterval(tick, 1000);
+}
+
+async function lockAdmin() {
   try {
-    const { data } = await axios.get('/api/admin/session');
-    const end = Date.parse(data.expiresAt);
-    const tick = () => { secondsLeft.value = Math.max(0, Math.ceil((end - Date.now()) / 1000)); if (!secondsLeft.value) { clearInterval(sessionTimer); void router.replace('/admin/access'); } };
-    tick(); sessionTimer = setInterval(tick, 1000);
-  } catch { await router.replace('/admin/access'); }
-});
-onUnmounted(() => clearInterval(sessionTimer));
+    await axios.delete('/api/admin/session');
+    await router.replace(adminPaths.gate);
+  } catch {
+    alert('세션 잠금을 완료하지 못했습니다. 다시 시도해주세요.');
+  }
+}
+
 // 활성화된 메뉴 ID
 const activeMenu = ref('products');
+
+onMounted(async () => {
+  setAdminConsoleMenu(activeMenu.value);
+  registerAdminSessionClock(bindSessionClock);
+  try {
+    const { data } = await axios.get('/api/admin/session');
+    bindSessionClock(data.expiresAt);
+  } catch {
+    await router.replace(adminPaths.gate);
+  }
+});
+onUnmounted(() => {
+  clearInterval(sessionTimer);
+  unregisterAdminSessionClock();
+});
 
 // 메뉴 구조 정의
 const menuItems = [
@@ -77,8 +114,10 @@ const toggleSidebar = () => {
 
 // 메뉴 클릭 시 자동으로 사이드바 닫기 (모바일용)
 const selectMenu = (id: string) => {
+  if (activeMenu.value === id) return;
   activeMenu.value = id;
   isSidebarOpen.value = false;
+  setAdminConsoleMenu(id);
 };
 </script>
 

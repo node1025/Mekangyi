@@ -241,7 +241,7 @@ const submitProduct = async () => {
 
     console.log('상품 등록 성공 정보:', response.data); 
     alert('상품이 성공적으로 등록되었습니다.');
-    
+
     // 등록 후 목록 새로고침 및 폼 초기화
     fetchProducts();
     resetForm();
@@ -249,8 +249,9 @@ const submitProduct = async () => {
 
   } catch (e: any) {
     console.error('등록 실패:', e.response?.data);
-    const errorMsg = e.response?.data?.error || e.response?.data?.message || '알 수 없는 에러';
-    alert('등록 실패: ' + errorMsg);
+    const errorMsg =
+      e.response?.data?.message || e.response?.data?.error || '등록에 실패했습니다.';
+    alert(errorMsg);
   }
 };
 </script>
