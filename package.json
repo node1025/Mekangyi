@@ -1,6 +1,6 @@
 {
   "name": "bukang-shop",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "부캉이 캐릭터 굿즈 쇼핑몰",
   "main": "index.js",
   "scripts": {

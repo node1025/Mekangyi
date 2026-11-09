@@ -354,29 +354,36 @@ onUnmounted(() => {
 /* 검색창 드롭다운 */
 .search-dropdown {
   position: absolute;
-  top: 55px;
+  top: 48px;
   right: 0;
-  width: 300px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(15px);
-  border-radius: 12px;
-  padding: 6px;
+  width: min(320px, calc(100vw - 32px));
+  background: #fff;
+  backdrop-filter: blur(12px);
+  border-radius: 10px;
+  padding: 8px 10px 10px;
   z-index: 1100;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5edf9;
+  box-shadow: 0 8px 24px rgba(18, 37, 81, 0.1);
   overflow: hidden;
-  animation: dropdownSlide 0.3s ease-out;
+  animation: dropdownSlide 0.25s ease-out;
+}
+
+.serch-input-wrapper {
+  padding: 2px 4px 8px;
+  border-bottom: 1px solid #eef2f8;
+  margin-bottom: 4px;
 }
 
 /* 검색 입력창 */
 .search-bar-input {
   width: 100%;
-  padding: 10px 0;
+  padding: 6px 4px;
   border: none;
   background: transparent;
   outline: none;
-  font-size:18px;
+  font-size: 15px;
   font-weight: 500;
-  color: #222;
+  color: #122551;
 }
 
 .search-bar-input::placeholder {
@@ -389,60 +396,69 @@ onUnmounted(() => {
   list-style: none;
   padding: 0;
   margin: 0;
-  max-height: 400px;
+  max-height: 260px;
   overflow-y: auto;
 }
 
 .search-results li {
-  padding: 12px 8px;
-  margin-bottom: 4px;
+  padding: 8px 6px;
+  margin-bottom: 2px;
   cursor: pointer;
-  border-radius: 12px;
-  transition: all 0.2s ease;
+  border-radius: 8px;
+  transition: background 0.15s ease;
 }
 
 .search-results li:hover {
-  background: #f1f4ff;
-  padding-left: 12px;
+  background: #f5f9ff;
 }
 
 /* 검색 결과 아이템 */
 .search-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .search-thumb {
-  width: 45px;
-  height: 45px;
-  object-fit: cover;
-  border-radius: 6px;
-  background: #f1f1f1;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #f5f8fe;
+  border: 1px solid #edf2fa;
+  padding: 2px;
 }
 
 .search-info {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .search-name {
-  font-size:17px;
+  font-size: 13px;
   font-weight: 600;
-  color: #222;
+  color: #244b7c;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .search-price {
-  font-size:15px;
-  color: #074CA1;
-  font-weight: bold;
+  font-size: 12px;
+  color: #3b78d9;
+  font-weight: 600;
 }
 
 .no-result {
-  padding: 20px;
+  padding: 14px 8px;
   text-align: center;
-  font-size:17px;
-  color: #999;
+  font-size: 13px;
+  color: #8a9bb5;
 }
 
 /* 장바구니 배지 스타일 */
