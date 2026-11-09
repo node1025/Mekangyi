@@ -15,3 +15,7 @@ deploy/certs/
 **/.local-mail/
 
 *.key
+
+.vscode/
+server/uploads/dynamic/
+

@@ -55,6 +55,7 @@ exports.createFullProduct = async (req, res) => {
         // Product 생성
         const product = new Product({});
         applyProductPayloadToDoc(product, productData);
+        if (productData.productCode) product.set('productCode', String(productData.productCode).trim());
         await product.save({ session });
 
         // 공통 이미지 추출
@@ -115,12 +116,15 @@ exports.getAllProducts = async (req, res) => {
         let query = { isDeleted: false };
 
         // 검색어가 있으면 검색 조건을 query 객체에 추가
-        if (search) {
-            const keyword = literalSearch(search);
+        if (search !== undefined && search !== null && String(search).trim()) {
+            const keyword = literalSearch(String(search).trim());
             if (keyword === null) return res.status(400).json({ message: '검색어는 100자 이하의 문자열이어야 합니다.' });
             query.$or = [
                 { "name.ko": { $regex: keyword, $options: 'i' } },
-                { "name.en": { $regex: keyword, $options: 'i' } }
+                { "name.en": { $regex: keyword, $options: 'i' } },
+                { category: { $regex: keyword, $options: 'i' } },
+                { productCode: { $regex: keyword, $options: 'i' } },
+                { description: { $regex: keyword, $options: 'i' } }
             ];
         }
 

@@ -8,7 +8,48 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const { declaredFormat, normalizeImage, failure, MAX_FILE_BYTES, MAX_TOTAL_BYTES } = require('../services/imageValidation');
 
-cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET });
+const cloudinaryReady = () => Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+if (cloudinaryReady()) {
+  cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET });
+}
+const uploadsRoot = path.resolve(__dirname, '../../uploads');
+const dynamicDir = path.join(uploadsRoot, 'dynamic');
+const localImageUploads = () => process.env.LOCAL_IMAGE_UPLOADS === 'true'
+  || (process.env.NODE_ENV !== 'production' && !cloudinaryReady());
+
+function storedPathOk(url) {
+  return /^https:\/\//.test(url || '') || (localImageUploads() && /^uploads\//.test(url || ''));
+}
+
+async function uploadToDisk(file) {
+  await fsp.mkdir(dynamicDir, { recursive: true });
+  const name = `${randomUUID()}.webp`;
+  const dest = path.join(dynamicDir, name);
+  await fsp.rename(file.path, dest);
+  const relative = `uploads/dynamic/${name}`;
+  return { public_id: relative, secure_url: relative };
+}
+
+async function removeFromDisk(id) {
+  const relative = String(id || '').replace(/^uploads[\\/]/, '');
+  if (!relative.startsWith('dynamic/')) return;
+  const file = path.resolve(dynamicDir, path.basename(relative));
+  if (!file.startsWith(dynamicDir + path.sep)) return;
+  await fsp.unlink(file).catch(() => {});
+}
+
+function defaultSendImage(file) {
+  if (localImageUploads()) return uploadToDisk(file);
+  return cloudinary.uploader.upload(file.path, {
+    resource_type: 'image', folder: 'bukang-shop', public_id: randomUUID(), format: 'webp', overwrite: false, timeout: 15000
+  });
+}
+
+function defaultRemoveImage(id) {
+  if (localImageUploads()) return removeFromDisk(id);
+  return cloudinary.uploader.destroy(id, { resource_type: 'image', timeout: 15000 });
+}
+
 const temporary = Symbol('temporary');
 const byteCount = Symbol('byteCount');
 const fieldCounts = Symbol('fieldCounts');
@@ -16,10 +57,8 @@ const fieldCounts = Symbol('fieldCounts');
 function createUploads({ uploadImage, deleteImage, tempRoot = os.tmpdir(), maxConcurrent = 4 } = {}) {
   let active = 0;
   tempRoot = path.resolve(tempRoot);
-  const sendImage = uploadImage || (file => cloudinary.uploader.upload(file.path, {
-    resource_type: 'image', folder: 'bukang-shop', public_id: randomUUID(), format: 'webp', overwrite: false, timeout: 15000
-  }));
-  const removeImage = deleteImage || (id => cloudinary.uploader.destroy(id, { resource_type: 'image', timeout: 15000 }));
+  const sendImage = uploadImage || defaultSendImage;
+  const removeImage = deleteImage || defaultRemoveImage;
   const directory = req => req[temporary] ||= fsp.mkdtemp(path.join(tempRoot, 'bukang-upload-'));
   const clean = async req => {
     if (!req[temporary]) return;
@@ -88,7 +127,7 @@ function createUploads({ uploadImage, deleteImage, tempRoot = os.tmpdir(), maxCo
           try { result = await sendImage(file); }
           catch { throw failure('이미지 저장 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.', 502); }
           if (result.public_id) uploadedIds.push(result.public_id);
-          if (!result.public_id || !/^https:\/\//.test(result.secure_url || '')) throw failure('이미지 저장에 실패했습니다.', 502);
+          if (!result.public_id || !storedPathOk(result.secure_url)) throw failure('이미지 저장에 실패했습니다.', 502);
           file.path = result.secure_url;
           file.filename = result.public_id;
           delete file.destination;

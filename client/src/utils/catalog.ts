@@ -8,7 +8,7 @@ export interface CatalogProduct {
   eventDiscountEnd?: string | null;
   effectiveDiscountRate?: number;
   isDiscountActive?: boolean;
-  thumbnail: string; status: string; createdAt: string; metrics?: { salesCount: number };
+  thumbnail: string; status: string; createdAt: string; updatedAt?: string; metrics?: { salesCount: number };
   variants: { color: string; inventories: { stockQuantity: number }[] }[];
 }
 export const money = (value: number) => new Intl.NumberFormat('ko-KR').format(value);
@@ -65,10 +65,26 @@ export function fromDatetimeLocalValue(s: string): string | null {
   const t = s?.trim() ? Date.parse(s) : NaN;
   return Number.isFinite(t) ? new Date(t).toISOString() : null;
 }
-export function imageUrl(path: string) {
+export function matchesProductSearch(
+  product: Pick<CatalogProduct, 'name' | 'category' | 'productCode'> & { description?: string },
+  query: string
+) {
+  const q = query.trim();
+  if (!q) return false;
+  const lower = q.toLowerCase();
+  const fields = [product.name.ko, product.name.en || '', product.category, product.productCode, product.description || ''];
+  return fields.some((text) => text.includes(q) || text.toLowerCase().includes(lower));
+}
+
+export function imageUrl(path: string, version?: string | number) {
   if (!path) return '/logo.svg';
   const normalized = path.replace(/\\/g, '/');
-  return /^https?:\/\//.test(normalized) ? normalized : `${(import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')}/${normalized.replace(/^\/+/, '')}`;
+  const base = /^https?:\/\//.test(normalized)
+    ? normalized
+    : `${(import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')}/${normalized.replace(/^\/+/, '')}`;
+  const stamp = version ?? (normalized.includes('uploads/') ? import.meta.env.VITE_BUILD_STAMP : '');
+  if (stamp == null || stamp === '') return base;
+  return `${base}${base.includes('?') ? '&' : '?'}v=${encodeURIComponent(String(stamp))}`;
 }
 export function useCatalog() {
   const products = ref<CatalogProduct[]>([]);

@@ -9,6 +9,8 @@ test('public gateway denies administrative APIs and write methods, including nor
  assert.ok(publicApiAllowed('GET','/api/products'));
  assert.ok(publicApiAllowed('POST','/api/orders/prepare'));
  assert.ok(publicApiAllowed('PATCH','/api/cart'));
+ assert.ok(publicApiAllowed('POST','/api/wishlist/toggle'));
+ assert.ok(publicApiAllowed('GET','/api/wishlist/status/507f1f77bcf86cd799439011'));
 });
 test('administrator network matching supports explicit IPv4/IPv6 CIDRs and defaults to loopback',()=>{
  const local=allowedNetworks();assert.ok(local('127.0.0.1'));assert.ok(local('::ffff:127.0.0.1'));assert.equal(local('127.0.0.2'),false);

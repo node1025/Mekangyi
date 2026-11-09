@@ -19,7 +19,7 @@ function publicApiAllowed(method, pathname) {
   if (/^\/api\/products(?:\/|$)/.test(p))return ['GET','HEAD'].includes(method);
   if (/^\/api\/orders(?:\/|$)/.test(p))return ['GET','HEAD','POST'].includes(method);
   if (/^\/api\/review(?:\/|$)/.test(p))return ['GET','HEAD','POST'].includes(method);
-  return /^\/api\/(auth|cart|board)(?:\/|$)/.test(p);
+  return /^\/api\/(auth|cart|wishlist|board)(?:\/|$)/.test(p);
 }
 function gateway({root,uploads,admin=false,apiPort=5002,allowlist}) {
   const allowed=allowedNetworks(allowlist);
@@ -48,8 +48,16 @@ function gateway({root,uploads,admin=false,apiPort=5002,allowlist}) {
     }
     if(!fs.existsSync(file)){res.writeHead(503);return res.end('Run npm run build first')}
     res.setHeader('Content-Type',mime[path.extname(file)]||'application/octet-stream');
-    if(!admin)res.setHeader('Cache-Control',image?'public, max-age=3600':path.extname(file)==='.html'?'no-cache':'public, max-age=3600');
-    res.setHeader('Content-Length',fs.statSync(file).size);res.writeHead(200);
+    const stat=fs.statSync(file);
+    if(image&&process.env.LOCAL_STACK_IMAGE_NO_CACHE==='true'){
+      res.setHeader('Cache-Control','no-store, must-revalidate');
+      res.setHeader('ETag',`W/"${stat.mtimeMs}-${stat.size}"`);
+      res.setHeader('Last-Modified',stat.mtime.toUTCString());
+    }else{
+      const imageCache=image?'public, max-age=3600':'public, max-age=3600';
+      if(!admin)res.setHeader('Cache-Control',image?imageCache:path.extname(file)==='.html'?'no-cache':'public, max-age=3600');
+    }
+    res.setHeader('Content-Length',stat.size);res.writeHead(200);
     if(req.method==='HEAD')return res.end();fs.createReadStream(file).pipe(res);
   });
 }

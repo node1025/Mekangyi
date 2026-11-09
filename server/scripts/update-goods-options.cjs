@@ -4,7 +4,7 @@ const Variant = require('../src/models/product/productvariant');
 const Inventory = require('../src/models/product/inventory');
 const catalog = require('../data/demo-products.json');
 const { runDemo } = require('./demo-db.cjs');
-const codes = new Set(['bukangi_tshirt','bukangi_plush_doll','bukangi_doll_keyring']);
+const codes = new Set(['bukangi_tshirt', 'bukangi_plush_doll', 'bukangi_doll_keyring', 'bukangi_mousepad']);
 
 // Add requested colors without replacing product IDs, prices or consumed stock.
 async function updateGoodsOptions() {

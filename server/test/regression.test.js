@@ -9,6 +9,8 @@ const Order = require('../src/models/order');
 const Review = require('../src/models/review');
 const auth = require('../src/controllers/authController');
 const cart = require('../src/controllers/cartController');
+const wishlist = require('../src/controllers/wishlistController');
+const Wishlist = require('../src/models/wishlist');
 const products = require('../src/controllers/productController');
 const reviews = require('../src/controllers/reviewController');
 const { literalSearch } = require('../src/utils/input');
@@ -158,5 +160,24 @@ test('delivered order cannot authorize review of unrelated product', async t => 
   const res = response();
   await reviews.createReview({ user: { id }, body: { orderId: id, productId: id, rating: 5, content: 'Example review content' } }, res);
   assert.equal(res.statusCode, 400);
+  assert.equal(write.mock.callCount(), 0);
+});
+
+test('invalid wishlist product ids never reach database writes', async t => {
+  const write = t.mock.method(Wishlist, 'create', () => { throw new Error('must not write'); });
+  for (const productId of ['bad', null, {}, 1.5]) {
+    const res = response();
+    await wishlist.toggleWishlist({ user: { id }, body: { productId } }, res);
+    assert.equal(res.statusCode, 400);
+  }
+  assert.equal(write.mock.callCount(), 0);
+});
+
+test('wishlist toggle rejects missing products', async t => {
+  t.mock.method(Product, 'findOne', async () => null);
+  const write = t.mock.method(Wishlist, 'create', () => { throw new Error('must not write'); });
+  const res = response();
+  await wishlist.toggleWishlist({ user: { id }, body: { productId: id } }, res);
+  assert.equal(res.statusCode, 404);
   assert.equal(write.mock.callCount(), 0);
 });

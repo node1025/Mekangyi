@@ -2,6 +2,7 @@
 import { ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import { imageUrl, matchesProductSearch } from '../utils/catalog';
 
 const route = useRoute();
 const router = useRouter();
@@ -10,15 +11,8 @@ const results = ref<any[]>([]);
 const loading = ref(false);
 const SERVER_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
-const getImageUrl = (path: string) => {
-  if (!path) return '/default-image.png';
-  return path.replace(/\\/g, '/').startsWith('http') 
-    ? path 
-    : `${SERVER_URL}/${path.replace(/\\/g, '/')}`;
-};
-
 const fetchSearchResults = async () => {
-  const query = route.query.q;
+  const query = typeof route.query.q === 'string' ? route.query.q.trim() : '';
   if (!query) {
     results.value = [];
     return;
@@ -29,7 +23,8 @@ const fetchSearchResults = async () => {
     const response = await axios.get(`${SERVER_URL}/api/products`, {
       params: { search: query }
     });
-    results.value = response.data.products || [];
+    const products = (response.data.products || []).filter((p: { status?: string }) => p.status !== '중단');
+    results.value = products.filter((p: Parameters<typeof matchesProductSearch>[0]) => matchesProductSearch(p, query));
   } catch (error) {
     console.error("검색 실패", error);
   } finally {
@@ -65,7 +60,7 @@ onMounted(fetchSearchResults);
         @click="goToDetail(product.productCode)"
       >
         <div class="img-box">
-          <img :src="getImageUrl(product.thumbnail)" :alt="product.name.ko" />
+          <img :src="imageUrl(product.thumbnail)" :alt="product.name.ko" />
         </div>
         <div class="info-box">
           <p class="name">{{ product.name.ko }}</p>

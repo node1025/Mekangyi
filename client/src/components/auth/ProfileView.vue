@@ -5,6 +5,7 @@ import axios from 'axios';
 import ProfileForm from '../mypage/ProfileForm.vue';
 import ShippingAddress from '../mypage/ShippingAddress.vue';
 import MyOrders from '../mypage/MyOrders.vue';
+import MyWishlist from '../mypage/MyWishlist.vue';
 
 const userStore = useUserStore();
 
@@ -153,6 +154,7 @@ const handleWithdraw = async () => {
             <li class="menu-item" :class="{ active: activeMenu === 'profile' }" @click="setActiveMenu('profile')"> 회원 정보 관리 </li>
             <li class="menu-item" :class="{ active: activeMenu === 'address' }" @click="setActiveMenu('address')"> 배송지 관리 </li>
             <li class="menu-item" :class="{ active: activeMenu === 'orders' }" @click="setActiveMenu('orders')"> 주문 내역 </li>
+            <li class="menu-item" :class="{ active: activeMenu === 'wishlist' }" @click="setActiveMenu('wishlist')"> 찜한 상품 </li>
           </ul>
         </div>
 
@@ -215,6 +217,12 @@ const handleWithdraw = async () => {
         </header>
         <div class="content-body">
           <MyOrders />
+        </div>
+      </section>
+
+      <section v-else-if="activeMenu === 'wishlist'">
+        <div class="content-body">
+          <MyWishlist />
         </div>
       </section>
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue';              // Vue Composition API의 반응형 상태 관리 도구(ref)
 import axios from 'axios';              // HTTP 요청 라이브러리
-import { useRouter } from 'vue-router'; // 페이지 이동(라우팅)을 위한 Vue Router 훅
+import { useRouter, useRoute } from 'vue-router'; // 페이지 이동(라우팅)을 위한 Vue Router 훅
 import { useUserStore } from '../../utils/userStore';
 
 // 폼 데이터 타입 정의
@@ -12,6 +12,7 @@ interface LoginFormData {
 
 // Vue Router 인스턴스
 const router = useRouter();
+const route = useRoute();
 
 const userStore = useUserStore();
 
@@ -95,7 +96,11 @@ const handleLogin = async () => {
 
     successMessage.value = message || '로그인 성공!';
     
-    router.push('/');
+    const redirect =
+      typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')
+        ? route.query.redirect
+        : '/';
+    router.push(redirect);
           
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {

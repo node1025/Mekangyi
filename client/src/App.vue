@@ -5,6 +5,7 @@ import { useUserStore } from './utils/userStore';
 import { IoOutlineSearch, IoOutlineBag, IoOutlinePerson, BsChevronBarUp } from '@kalimahapps/vue-icons';  // 아이콘
 import axios from 'axios';
 import Footer from './views/Footer.vue';
+import { imageUrl, matchesProductSearch } from './utils/catalog';
 
 const userStore = useUserStore();
 const router = useRouter();
@@ -16,7 +17,6 @@ const showTopButton = ref(false);   // 상단 이동 버튼 표시 상태
 const cartCount = ref(0);           // 장바구니 물품 수
 const searchQuery = ref('');        // 검색어 입력값
 const allProducts = ref<any[]>([]); // 전체 상품 목록
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
 // 로그아웃 처리 함수
 const handleLogout = () => {
@@ -52,17 +52,18 @@ const handleClickOutside = (e: MouseEvent) => {
 
 // 검색 기능
 const filteredResults = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase();
+  const query = searchQuery.value.trim();
   if (!query) return [];
-  
-  // 상품명(한글/영어)에 검색어가 포함된 상품만 필터링 (최대 7개)
-  return allProducts.value
-    .filter(p => 
-      p.name.ko.toLowerCase().includes(query) || 
-      (p.name.en && p.name.en.toLowerCase().includes(query))
-    )
-    .slice(0, 7); 
+  return allProducts.value.filter((p) => matchesProductSearch(p, query)).slice(0, 7);
 });
+
+const openSearchPage = () => {
+  const query = searchQuery.value.trim();
+  if (!query) return;
+  router.push({ path: '/search', query: { q: query } });
+  searchQuery.value = '';
+  isSearchOpen.value = false;
+};
 
 // 검색창 토글 시 데이터가 없으면 불러오기
 const toggleSearch = async () => {
@@ -70,7 +71,7 @@ const toggleSearch = async () => {
   if (isSearchOpen.value) {
     try {
       const response = await axios.get('/api/products');
-      allProducts.value = response.data.products;
+      allProducts.value = (response.data.products || []).filter((p: { status?: string }) => p.status !== '중단');
     } catch (error) {
       console.error("상품 로드 실패", error);
     }
@@ -180,6 +181,7 @@ onUnmounted(() => {
                 aria-label="상품 검색어"
                 class="search-bar-input"
                 @keyup.esc="isSearchOpen = false"
+                @keyup.enter="openSearchPage"
                 ref="searchInput"
                 autofocus
               />
@@ -188,7 +190,7 @@ onUnmounted(() => {
             <ul v-if="filteredResults.length > 0" class="search-results">
               <li v-for="product in filteredResults" :key="product._id" @click="goToProduct(product.productCode)">
                 <div class="search-item">
-                  <img :src="`${API_BASE_URL}/${product.thumbnail}`" class="search-thumb" alt="상품" />
+                  <img :src="imageUrl(product.thumbnail)" class="search-thumb" alt="상품" />
                   <div class="search-info">
                     <span class="search-name">{{ product.name.ko }}</span>
                     <span class="search-price">{{ product.finalPrice.toLocaleString() }}원</span>

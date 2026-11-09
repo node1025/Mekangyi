@@ -35,6 +35,7 @@ function pluralizeCollection(modelName) {
     ProductVariant: 'productvariants',
     Inventory: 'inventories',
     Cart: 'carts',
+    Wishlist: 'wishlists',
     Order: 'orders',
     Review: 'reviews',
     Board: 'boards',

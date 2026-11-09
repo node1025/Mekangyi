@@ -21,9 +21,9 @@
         "variantCode": "bukangi_plush_doll-std",
         "color": "블루",
         "images": {
-          "thumbnail": "uploads/bukangi/bukangi_plush_doll_1.jpg",
+          "thumbnail": "uploads/bukangi/bukangi_plush_doll_1.png",
           "gallery": [
-            "uploads/bukangi/bukangi_plush_doll_1.jpg",
+            "uploads/bukangi/bukangi_plush_doll_1.png",
             "uploads/bukangi/bukangi_plush_doll_2.png",
             "uploads/bukangi/bukangi_plush_doll_3.png",
             "uploads/bukangi/bukangi_plush_doll_4.png"
@@ -37,7 +37,7 @@
           "thumbnail": "uploads/bukangi/bukangi_plush_doll_2.png",
           "gallery": [
             "uploads/bukangi/bukangi_plush_doll_2.png",
-            "uploads/bukangi/bukangi_plush_doll_1.jpg",
+            "uploads/bukangi/bukangi_plush_doll_1.png",
             "uploads/bukangi/bukangi_plush_doll_3.png",
             "uploads/bukangi/bukangi_plush_doll_4.png"
           ]
@@ -45,9 +45,9 @@
       }
     ],
     "images": {
-      "thumbnail": "uploads/bukangi/bukangi_plush_doll_1.jpg",
+      "thumbnail": "uploads/bukangi/bukangi_plush_doll_1.png",
       "gallery": [
-        "uploads/bukangi/bukangi_plush_doll_1.jpg",
+        "uploads/bukangi/bukangi_plush_doll_1.png",
         "uploads/bukangi/bukangi_plush_doll_2.png",
         "uploads/bukangi/bukangi_plush_doll_3.png",
         "uploads/bukangi/bukangi_plush_doll_4.png"

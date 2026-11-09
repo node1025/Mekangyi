@@ -2,10 +2,16 @@
 import { ref, watch, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import axios from 'axios';
+import { useUserStore } from '../../utils/userStore';
 import ProductInformation from './ProductInformation.vue';
 
 const route = useRoute();
 const router = useRouter();
+const userStore = useUserStore();
+
+const isWished = ref(false);
+const wishPending = ref(false);
+const wishFeedback = ref('');
 
 // 서버 기본 URL 설정
 const SERVER_URL = ((import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')).replace(/\/$/, '');
@@ -188,6 +194,66 @@ const saveToCart = async () => {
   window.dispatchEvent(new CustomEvent('cart-updated'));  // 장바구니 상태 갱신 이벤트
 };
 
+const authHeaders = () => ({
+  Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+});
+
+const fetchWishStatus = async (productId: string) => {
+  isWished.value = false;
+  if (!userStore.isLoggedIn.value || !localStorage.getItem('accessToken')) return;
+  try {
+    const response = await axios.get(`${SERVER_URL}/api/wishlist/status/${productId}`, {
+      headers: authHeaders()
+    });
+    isWished.value = Boolean(response.data.wished);
+  } catch {
+    isWished.value = false;
+  }
+};
+
+const toggleWish = async () => {
+  wishFeedback.value = '';
+  if (wishPending.value) return;
+
+  const token = localStorage.getItem('accessToken');
+  if (!token || !userStore.isLoggedIn.value) {
+    wishFeedback.value = '로그인 후 이용할 수 있습니다.';
+    if (window.confirm('로그인 페이지로 이동할까요?')) {
+      router.push({ path: '/login', query: { redirect: route.fullPath } });
+    }
+    return;
+  }
+
+  if (!product.value?._id) {
+    wishFeedback.value = '상품 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.';
+    return;
+  }
+
+  wishPending.value = true;
+  try {
+    const response = await axios.post(
+      `${SERVER_URL}/api/wishlist/toggle`,
+      { productId: product.value._id },
+      { headers: authHeaders() }
+    );
+    isWished.value = Boolean(response.data.wished);
+    wishFeedback.value = isWished.value
+      ? '찜 목록에 담았습니다. 마이페이지 → 찜한 상품에서 확인할 수 있습니다.'
+      : '찜을 해제했습니다.';
+  } catch (error: any) {
+    const status = error.response?.status;
+    if (status === 401) {
+      wishFeedback.value = '로그인이 만료되었습니다. 다시 로그인해주세요.';
+      userStore.logout();
+      router.push({ path: '/login', query: { redirect: route.fullPath } });
+    } else {
+      wishFeedback.value = error.response?.data?.message || '찜 처리에 실패했습니다.';
+    }
+  } finally {
+    wishPending.value = false;
+  }
+};
+
 // 장바구니 담기
 const addToCart = async () => {
   if (selectedItems.value.length === 0) {
@@ -267,6 +333,8 @@ watch([() => route.params.id, reloadKey], async ([productCode]) => {
   reviews.value = [];
   selectedItems.value = [];
   selectedVariantIndex.value = 0;
+  isWished.value = false;
+  wishFeedback.value = '';
   onVariantChange();
   try {
     const response = await axios.get(`${SERVER_URL}/api/products/${productCode}`);
@@ -275,7 +343,10 @@ watch([() => route.params.id, reloadKey], async ([productCode]) => {
     variants.value = response.data.variants;
 
     if (product.value?._id) {
-      await fetchReviews(product.value._id);
+      await Promise.all([
+        fetchReviews(product.value._id),
+        fetchWishStatus(product.value._id)
+      ]);
     }
   } catch (error) {
     if (version !== loadVersion) return;
@@ -409,8 +480,25 @@ const renderStars = (rating: number) => {
         <button class="buy-now-btn" @click="buyNow">바로 구매</button>
         <div class="sub-action-btns">
           <button class="cart-btn" @click="addToCart">장바구니 담기</button>
-          <button class="wish-btn">찜하기</button>
+          <button
+            type="button"
+            class="wish-btn"
+            :class="{ active: isWished }"
+            :disabled="wishPending"
+            :aria-pressed="isWished"
+            @click="toggleWish"
+          >
+            {{ wishPending ? '처리 중…' : isWished ? '찜 해제' : '찜하기' }}
+          </button>
         </div>
+        <p
+          v-if="wishFeedback"
+          class="wish-feedback"
+          role="status"
+          aria-live="polite"
+        >
+          {{ wishFeedback }}
+        </p>
       </div>
     </div>
   </div>
@@ -818,8 +906,30 @@ select {
 }
 
 .cart-btn:hover,
-.wish-btn:hover {
+.wish-btn:hover:not(:disabled) {
   background: #dbeafe;
+}
+
+.wish-btn.active {
+  background: #ffe8ec;
+  border-color: #f5a8b8;
+  color: #b4233c;
+}
+
+.wish-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.wish-feedback {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #1e3a5f;
+  background: #eff6ff;
+  border: 1px solid #c7d9f5;
+  border-radius: 6px;
 }
 /* 탭 섹션 전체 컨테이너 */
 .product-tabs-container {

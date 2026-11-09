@@ -5,6 +5,7 @@ const cors = require('cors');                       // CORS 설정 미들웨어
 const authRoutes = require('./routes/auth');        // 회원가입/로그인 관련 라우터 불러오기
 const productRoutes = require('./routes/product');  // 상품 관련 라우터 불러오기
 const cartRoutes = require('./routes/cart');        // 장바구니 관련 라우터 불러오기
+const wishlistRoutes = require('./routes/wishlist'); // 찜 목록 라우터
 const orderRoutes = require('./routes/order');      // 주문 관련 라우터 불러오기
 const reviewRoutes = require('./routes/review');    // 리뷰 관련 라우터 불러오기
 const boardRoutes = require('./routes/board');      // 게시판 관련 라우터 불러오기
@@ -38,6 +39,7 @@ app.use('/api/products', productRoutes);
 // Local Vite development can opt in; deployed images are served by the web servers.
 if (process.env.SERVE_UPLOADS === 'true') app.use('/uploads', express.static(require('node:path').join(__dirname, '../uploads')));
 app.use('/api/cart', cartRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/review', reviewRoutes);
 app.use('/api/board', boardRoutes);

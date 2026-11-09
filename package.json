@@ -6,7 +6,8 @@
   "scripts": {
     "test": "npm --prefix server test",
     "build": "npm --prefix client run build && npm --prefix admin run build",
-    "start-all": "node scripts/local-stack.cjs",
+    "start-all": "node scripts/start-local-stack.cjs",
+    "stop-local": "node scripts/stop-local-stack.cjs",
     "seed:demo": "npm --prefix server run seed:demo",
     "admin:demo": "npm --prefix server run admin:demo",
     "install": "npm --prefix server ci && npm --prefix client ci && npm --prefix admin ci",
