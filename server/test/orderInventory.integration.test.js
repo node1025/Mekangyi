@@ -36,7 +36,10 @@ test('real MariaDB inventory transactions', { skip: process.env.RUN_INVENTORY_IN
   }
   async function prepare(items) {
     const res = response();
-    await controller.prepareOrder(request({ items, shippingAddress: { receiver: 'Tester', phone: '01012345678', address: 'Seoul' } }), res);
+    await controller.prepareOrder(request({
+      items,
+      shippingAddress: { receiver: 'Tester', phone: '01012345678', zipCode: '12345', address: 'Seoul', detailAddress: '101호' },
+    }), res);
     assert.equal(res.statusCode, 201, JSON.stringify(res.body));
     const prepared = res.body;
     payments.set(prepared.paymentId, { id: prepared.paymentId, status: 'PAID', currency: 'KRW', amount: { total: prepared.totalPrice } });

@@ -3,6 +3,7 @@ const AdminSession = require('../models/adminSession');
 const jwt = require('jsonwebtoken');    // JWT 생성 및 검증을 위한 jsonwebtoken 모듈 불러오기
 const { pick } = require('../utils/input');
 const passwordResetController = require('./passwordResetController');
+const { respondValidation, validateShippingAddressFields } = require('../utils/validationResponse');
 
 const profileFields = ['name', 'email', 'phone', 'address', 'gender', 'birthDate'];
 const publicUser = user => {
@@ -35,11 +36,8 @@ exports.register = async (req, res) => {
         });
 
     } catch (error) {
-        if (error.name === 'ValidationError') { // 유효성 검사 실패 (필수값 누락, 형식 오류 등)
-            return res.status(400).json({
-                message: '유효성 검사 실패',
-                errors: Object.fromEntries(Object.entries(error.errors).map(([field, detail]) => [field, { message: detail.message }]))
-            });
+        if (error.name === 'ValidationError') {
+            return respondValidation(res, error);
         }
 
         if (error.code === 11000) {             // MariaDB 유니크 인덱스(중복 키) — mysql errno 1062 → code 11000 (아이디 또는 이메일 중복)
@@ -166,6 +164,7 @@ exports.updateProfile = async (req, res) => {
         if (!user) return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
         res.status(200).json({ message: '수정 성공', user });
     } catch (error) {
+        if (error.name === 'ValidationError') return respondValidation(res, error);
         res.status(500).json({ message: '수정 실패' });
     }
 };
@@ -174,12 +173,10 @@ exports.updateShippingAddress = async (req, res) => {
     const input = req.body || {};
     const fields = ['receiver','phone','zipCode','basicAddress','detailAddress'];
     if (fields.some(key => input[key] !== undefined && typeof input[key] !== 'string')) return res.status(400).json({ message: '배송지 입력 형식을 확인해주세요.' });
-    const address = Object.fromEntries(fields.map(key=>[key,(input[key] || '').trim()]));
+    const address = Object.fromEntries(fields.map(key => [key, (input[key] || '').trim()]));
     address.phone = address.phone.replace(/-/g, '');
-    if (!address.receiver || address.receiver.length>50 || !/^\d{10,11}$/.test(address.phone) ||
-        !/^\d{5}$/.test(address.zipCode) || !address.basicAddress || address.basicAddress.length>200 || address.detailAddress.length>200) {
-        return res.status(400).json({ message: '받는 분, 연락처, 5자리 우편번호와 주소를 정확히 입력해주세요.' });
-    }
+    const invalid = validateShippingAddressFields(address);
+    if (invalid) return res.status(400).json(invalid);
     try {
         const user = await User.findByIdAndUpdate(req.user.id, { $set: { shippingAddress: address } }, { new: true, runValidators: true });
         if (!user) return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });

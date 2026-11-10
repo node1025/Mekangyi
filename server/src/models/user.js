@@ -52,15 +52,15 @@ const userSchema = new Schema({
     address: {              // 주소 정보
         zipCode: {
             type: String,
-            required: true
+            required: [true, '우편번호를 입력해주세요.']
         },
         basicAddress: {
             type: String,
-            required: true
+            required: [true, '기본 주소를 입력해주세요. 주소 검색을 이용해주세요.']
         },
         detailAddress: {
             type: String,
-            required: true
+            required: [true, '상세 주소를 입력해주세요.']
         }
     },
     shippingAddress: {

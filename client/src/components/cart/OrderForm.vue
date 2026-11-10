@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import { fieldErrorsFromApi, validationSummary } from '../../utils/apiValidation';
 
 const router = useRouter();
 
@@ -11,6 +12,8 @@ const orderData = ref<any>({  // 주문 데이터
   shippingFee: 0,
   finalOrderPrice: 0
 });
+
+const shippingFieldErrors = ref<Record<string, string>>({});
 
 const shippingAddress = ref({ // 배송지 정보
   receiver: '',
@@ -149,6 +152,7 @@ const rememberPayment = (paymentId: string | null) => {
 
 const handlePayment = async () => {
   if (isPaying.value) return;
+  shippingFieldErrors.value = {};
   isPaying.value = true;
   try {
     if (!confirmedPaymentId.value) {
@@ -220,7 +224,9 @@ const handlePayment = async () => {
     alert('주문 및 결제가 완료되었습니다.');
     router.push('/order-success');
   } catch (error: any) {
-    const message = error.response?.data?.message || error.message || '주문을 처리하지 못했습니다.';
+    const data = error.response?.data;
+    shippingFieldErrors.value = fieldErrorsFromApi(data?.errors);
+    const message = validationSummary(data, error.message || '주문을 처리하지 못했습니다.');
     if (confirmedPaymentId.value) {
       alert(message + '\n추가 결제 없이 주문 확인을 다시 시도할 수 있습니다. 계속 실패하면 관리자에게 주문번호 ' + confirmedPaymentId.value + '를 알려주세요.');
     } else alert(message);
@@ -264,7 +270,9 @@ const getImageUrl = (path: string) => {
                   <button class="sub-btn" @click="execDaumPostcode">주소찾기</button>
                 </div>
                 <input v-model="shippingAddress.address" placeholder="기본 주소" readonly />
-                <input v-model="shippingAddress.detailAddress" placeholder="상세 주소를 입력하세요" />
+                <input v-model="shippingAddress.detailAddress" placeholder="상세 주소를 입력하세요" required />
+                <p v-if="shippingFieldErrors.detailAddress" class="field-error" role="alert">{{ shippingFieldErrors.detailAddress }}</p>
+                <p v-if="shippingFieldErrors.address" class="field-error" role="alert">{{ shippingFieldErrors.address }}</p>
               </div>
             </div>
           </div>
@@ -509,5 +517,10 @@ h3 {
   .order-container { flex-direction: column; }
   .order-right { width: 100%; position: static; }
   .summary-sticky { margin-top: 20px; }
+}
+.field-error {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #c62828;
 }
 </style>

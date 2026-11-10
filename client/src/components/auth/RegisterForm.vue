@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';              // Vue Composition API의 반�
 import axios from 'axios';                        // HTTP 요청 라이브러리
 import { useRouter } from 'vue-router';           // 페이지 이동(라우팅)을 위한 Vue Router 훅
 import { TERMS_DATA } from '../../member/terms';  // 약관 전문 데이터
+import { fieldErrorsFromApi, validationSummary } from '../../utils/apiValidation';
 
 // 회원가입 폼 데이터 타입 정의
 interface RegisterFormData {
@@ -51,6 +52,7 @@ const router = useRouter();         // 회원가입 완료 후 로그인 페이�
 
 const isLoading = ref(false);       // 회원가입 진행 중 상태
 const errorMessage = ref('');       // 에러 메시지 상태
+const fieldErrors = ref<Record<string, string>>({});
 const successMessage = ref('');     // 성공 메시지 상태
 
 const isIdChecked = ref(false);     // 아이디 중복 확인 완료 여부
@@ -333,6 +335,7 @@ const handleRegister = async () => {
   // 로딩 상태 활성화 및 메시지 초기화
   isLoading.value = true;
   errorMessage.value = '';
+  fieldErrors.value = {};
   successMessage.value = '';
   
   try {
@@ -350,9 +353,9 @@ const handleRegister = async () => {
     router.push('/login');
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
-      // 백엔드에서 보낸 에러 응답 처리 (400, 11000 등)
       const errorData = error.response.data;
-      errorMessage.value = errorData.message || '회원가입 중 오류가 발생했습니다.';
+      fieldErrors.value = fieldErrorsFromApi(errorData.errors);
+      errorMessage.value = validationSummary(errorData, '회원가입 중 오류가 발생했습니다.');
     } else {
       errorMessage.value = '서버와 통신하는 데 실패했습니다.';
     }
@@ -437,7 +440,11 @@ const handleRegister = async () => {
               <button type="button" class="outline-btn" @click="openPostcode"> 주소검색 </button>
             </div>
             <input type="text" v-model="formData.address.basicAddress" placeholder="기본 주소" readonly />
-            <input type="text" v-model="formData.address.detailAddress" placeholder="상세 주소를 입력해주세요" />
+            <p v-if="fieldErrors.basicAddress || fieldErrors.zipCode" class="helper-msg error-text">
+              {{ fieldErrors.basicAddress || fieldErrors.zipCode }}
+            </p>
+            <input type="text" v-model="formData.address.detailAddress" placeholder="상세 주소를 입력해주세요" required />
+            <p v-if="fieldErrors.detailAddress" class="helper-msg error-text">{{ fieldErrors.detailAddress }}</p>
           </div>
         </div>
 

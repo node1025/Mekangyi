@@ -5,36 +5,123 @@
 | 폴더 | 역할 |
 |---|---|
 | client/ | 고객 전용 Vue 앱. 관리자 화면·관리자 진입 링크를 포함하지 않음 |
-| admin/ | 임직원 전용 Vue 앱. 별도 로그인 → 비밀번호 재인증 → 상품·주문·게시판 관리 |
+| admin/ | 임직원 전용 Vue 앱. 별도 로그인 → 상품·주문·게시판 관리 |
 | server/ | 회원·상품·장바구니·주문·게시판 API와 MariaDB 처리 |
 | deploy/ | 고객·관리자 Nginx, IP 허용 목록, 서버 직접 배포 설정 |
 | scripts/ | 분리된 정적 웹과 API의 로컬 실행 도구 |
 
 ## 로컬 실행
 
-Node.js 22.12 이상, MariaDB 11.4가 필요합니다. 프로젝트 루트에서:
+### 준비물
+
+- **Node.js** 22.12 이상
+- **MariaDB** 11.4 (서비스 실행 중이어야 함)
+
+ZIP·Git으로 받으면 **`server/.env`는 없습니다.** 비밀번호·JWT는 저장소에 넣지 않기 때문에 **자동 생성되지 않으며**, 아래 **3단계**에서 직접 만들어야 합니다. (`*.env.example`만 포함됩니다.)
+
+### 처음 설치 순서 (이 순서대로)
+
+**1. MariaDB에 DB·계정 준비** (한 번만)
+
+MariaDB에 로그인한 뒤, 예시는 아래와 같습니다. 이름·비밀번호는 팀에서 정한 값으로 바꿉니다.
+
+```sql
+CREATE DATABASE IF NOT EXISTS bukang_shop_demo CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+CREATE USER IF NOT EXISTS 'bukang'@'localhost' IDENTIFIED BY '여기에_비밀번호';
+GRANT ALL ON bukang_shop_demo.* TO 'bukang'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+**2. `server/.env` 만들기** (없으면 `db:init`·`start-all` 모두 실패)
+
+프로젝트 **루트**에서:
+
+```powershell
+# Windows (PowerShell)
+Copy-Item server\.env.example server\.env
+```
+
+```sh
+# macOS / Linux
+cp server/.env.example server/.env
+```
+
+`server/.env`를 열고 **최소한** 다음을 채웁니다.
+
+| 항목 | 설명 |
+|------|------|
+| `MARIADB_URI` | `mariadb://계정:비밀번호@127.0.0.1:3306/bukang_shop_demo` 형식 |
+| `DEMO_MARIADB_URI` | 데모 시드용. 보통 `MARIADB_URI`와 같은 DB |
+| `JWT_SECRET` | 아무 긴 임의 문자열 (비어 있으면 로그인 실패) |
+| `JWT_REFRESH_SECRET` | `JWT_SECRET`과 **다른** 임의 문자열 |
+
+`client/.env`, `admin/.env`는 **로컬 웹 스택(`start-all`)만 쓸 때는 없어도 됩니다.** (브라우저가 각 사이트의 `/api`로 요청합니다.)
+
+**3. 패키지 설치** (프로젝트 루트)
 
 ```sh
 npm ci
 ```
 
-루트 설치 스크립트가 server/client/admin 의존성을 모두 설치합니다. `server/.env.example`을 `server/.env`로 복사하고 DB 연결, 서로 다른 JWT 비밀값을 입력합니다. DB 계정은 해당 DB만 접근하게 설정합니다. 샘플 상품·관리자는 실제 운영 DB와 분리된 `_demo` DB에서 준비합니다.
+(`package-lock.json`이 없거나 오류면 `npm install`)
+
+**4. DB 테이블 생성**
 
 ```sh
 npm run db:init
+```
+
+`MariaDB 연결 성공` 또는 에러 메시지가 나옵니다. `MARIADB_URI` 오류면 2단계를 다시 확인합니다.
+
+**5. 데모 데이터·관리자 계정** (선택이지만 처음엔 권장)
+
+```sh
 npm run seed:demo
 npm run admin:demo
-npm run build
+```
+
+`admin:demo`가 터미널에 **아이디 `demoAdmin`과 로그인 비밀번호**를 한 번 출력합니다. 메모해 두세요. (파일에 저장되지 않습니다.)
+
+**6. 고객몰·관리자 빌드**
+
+```sh
+npm run build:local
+```
+
+`client/dist`, `admin/dist`가 없으면 `start-all` 후 화면이 비거나 404가 납니다.
+
+**7. 웹 스택 실행**
+
+```sh
 npm run start-all
 ```
 
-- 고객: http://127.0.0.1:8080
-- 관리자: http://localhost:8081
-- API: 127.0.0.1:5002 (브라우저는 각 웹 서버의 /api 프록시 사용)
+이 터미널을 **켜 둔 채** 사용합니다. 종료는 **Ctrl+C**.
 
-관리자 계정 생성 명령은 `demoAdmin`과 임의의 비밀번호를 한 번 출력하며 기존 계정을 변경하지 않습니다. 두 사이트의 로컬 주소는 쿠키·저장소 분리를 위해 위 표기대로 사용합니다. 실행 중에는 `start-all` 터미널을 유지하고 Ctrl+C로 종료합니다. `LOCAL_SHOP_PORT`, `LOCAL_ADMIN_PORT`, `LOCAL_API_PORT`로 충돌 포트를 바꿀 수 있습니다.
+| 접속 | 주소 |
+|------|------|
+| 고객몰 | http://127.0.0.1:8080 |
+| 관리자 로그인 | http://localhost:9081/login (Windows 기본 포트 **9081**. macOS/Linux는 8081일 수 있음) |
+| 로컬 메일함 | http://127.0.0.1:8025 |
+| API | 127.0.0.1:5002 (브라우저는 직접 열지 않고, 각 웹의 `/api` 프록시 사용) |
 
-이 로컬 실행은 빌드된 정적 파일을 각각의 Node HTTP 웹 서버가 제공하고 별도 Express API에 연결합니다. 관리자 접속은 루프백 IP만 허용하며 다른 장치에는 노출하지 않습니다. 외부 운영용 Nginx 구성은 deploy/에 별도로 있습니다. Vite 개발 서버(`dev:shop`, `dev:admin`)는 start-all을 먼저 실행한 상태에서 사용하며 사진은 8080 정적 서버로 연결됩니다. 화면 개발 전용이며 관리자 IP 제한 검증·운영에는 사용하지 않습니다.
+코드를 수정했으면 **6→7**을 다시 하거나 VS Code 작업 **★ VS Code: 로컬 실행 (빌드+스택+고객몰)** 을 사용합니다.
+
+### 자주 안 되는 이유
+
+| 증상 | 원인 | 조치 |
+|------|------|------|
+| `MARIADB_URI를 … 설정해주세요` | `server/.env` 없음 또는 URI 비어 있음 | 2단계 복사·수정 |
+| MariaDB 연결 실패 | DB·계정·비밀번호 불일치, MariaDB 미실행 | 1·2단계, Windows 서비스에서 MariaDB 확인 |
+| 로그인·API 403/500 | `JWT_SECRET` 비어 있음 | `.env`에 JWT 두 값 입력 후 `start-all` 재시작 |
+| 빈 페이지·404 | `dist` 없음 | `npm run build:local` 후 재실행 |
+| 포트 사용 중 | 8080/9081/5002 점유 | 다른 터미널 `npm run stop-local` 또는 `LOCAL_*_PORT` 변경 |
+
+관리자 비밀번호를 잊었으면: `npm run admin:reset-password` (VS Code **Admin: reset password** 작업 동일).
+
+### 동작 방식 (요약)
+
+빌드된 정적 파일을 Node **웹 게이트웨이**(고객/관리자)가 제공하고, API는 별도 Express가 담당합니다. 관리자 사이트는 기본적으로 **루프백(127.0.0.1)** 만 허용합니다. 운영 Nginx 설정은 `deploy/`에 있습니다. 화면만 빠르게 볼 때는 `npm run dev:shop` / `dev:admin`(Vite)을 쓸 수 있으나, **IP 제한·운영과 동일한 경로 검증**은 `start-all` 기준입니다.
 
 ## 기능과 데이터
 
@@ -54,6 +141,7 @@ npm run start-all
 ## 검증
 
 ```sh
+
 npm test
 npm run build
 npm run test:mariadb

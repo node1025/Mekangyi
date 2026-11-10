@@ -3,8 +3,13 @@ const Product = require('../models/product/product');
 const Variant = require('../models/product/productvariant');
 const Inventory = require('../models/product/inventory');
 const { salePriceFromProduct } = require('../utils/productPricing');
+const { validateShippingAddressFields } = require('../utils/validationResponse');
 
-const fail = (message, status = 400) => Object.assign(new Error(message), { status });
+const fail = (message, status = 400, errors) => {
+  const error = Object.assign(new Error(message), { status });
+  if (errors) error.errors = errors;
+  return error;
+};
 const validId = value => typeof value === 'string' && isObjectIdOrHexString(value);
 
 function normalizeItems(items) {
@@ -27,13 +32,21 @@ function normalizeItems(items) {
 
 function shippingAddress(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw fail('배송 정보를 입력해주세요.');
-  const address = {};
-  for (const [field, max] of [['receiver', 100], ['phone', 30], ['address', 300], ['detailAddress', 300], ['zipCode', 20]]) {
-    const value = input[field] ?? '';
-    if (typeof value !== 'string' || value.length > max) throw fail('배송 정보를 확인해주세요.');
-    address[field] = value.trim();
-  }
-  if (!address.receiver || !address.phone || !address.address) throw fail('수령인, 연락처, 주소를 입력해주세요.');
+  const address = {
+    receiver: typeof input.receiver === 'string' ? input.receiver.trim() : '',
+    phone: typeof input.phone === 'string' ? input.phone.replace(/-/g, '').trim() : '',
+    zipCode: typeof input.zipCode === 'string' ? input.zipCode.trim() : '',
+    address: typeof input.address === 'string' ? input.address.trim() : '',
+    detailAddress: typeof input.detailAddress === 'string' ? input.detailAddress.trim() : '',
+  };
+  const invalid = validateShippingAddressFields({
+    receiver: address.receiver,
+    phone: address.phone,
+    zipCode: address.zipCode,
+    address: address.address,
+    detailAddress: address.detailAddress,
+  });
+  if (invalid) throw fail(invalid.message, 400, invalid.errors);
   return address;
 }
 

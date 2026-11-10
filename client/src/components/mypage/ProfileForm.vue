@@ -2,6 +2,7 @@
 import { reactive, ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import { fieldErrorsFromApi, validationSummary } from '../../utils/apiValidation';
 
 // 부모로부터 받은 초기 유저 데이터
 const props = defineProps<{
@@ -9,6 +10,8 @@ const props = defineProps<{
 }>();
 
 const router = useRouter();
+const fieldErrors = ref<Record<string, string>>({});
+const formError = ref('');
 
 const emailUser = ref('');                // 이메일 아이디 부분
 const emailDomain = ref('naver.com');     // 이메일 도메인
@@ -133,6 +136,8 @@ const handlePhoneInput = (e: Event) => {
 };
 
 const handleUpdate = async () => {
+  fieldErrors.value = {};
+  formError.value = '';
   try {
     const token = localStorage.getItem('accessToken'); // 로그인 시 저장한 토큰 가져오기
     
@@ -184,9 +189,9 @@ const response = await axios.patch(
       router.push('/');
     }
   } catch (error: any) {
-    console.error('수정 에러:', error);
-    const msg = error.response?.data?.message || '정보 수정 중 오류가 발생했습니다.';
-    alert(msg);
+    const data = error.response?.data;
+    fieldErrors.value = fieldErrorsFromApi(data?.errors);
+    formError.value = validationSummary(data, '정보 수정 중 오류가 발생했습니다.');
   }
 };
 
@@ -292,9 +297,15 @@ const handleChangePassword = async () => {
           <button type="button" class="outline-btn" @click="openPostcode">주소검색</button>
         </div>
         <input type="text" v-model="form.address.basicAddress" placeholder="기본 주소" readonly />
-        <input type="text" v-model="form.address.detailAddress" placeholder="상세 주소" />
+        <p v-if="fieldErrors.basicAddress || fieldErrors.zipCode" class="field-error" role="alert">
+          {{ fieldErrors.basicAddress || fieldErrors.zipCode }}
+        </p>
+        <input type="text" v-model="form.address.detailAddress" placeholder="상세 주소" required />
+        <p v-if="fieldErrors.detailAddress" class="field-error" role="alert">{{ fieldErrors.detailAddress }}</p>
       </div>
     </div>
+
+    <p v-if="formError" class="field-error form-error" role="alert">{{ formError }}</p>
 
     <div class="input-group">
       <label>성별</label>
@@ -633,4 +644,12 @@ input[type="radio"] {
     transform: translateY(0);
   }
 }
+
+.field-error {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #c62828;
+  line-height: 1.5;
+}
+.form-error { margin-top: 12px; }
 </style>

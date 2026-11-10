@@ -7,7 +7,9 @@ const gateway = require('../services/paymentGateway');
 
 const reportError = (res, error, extra = {}) => {
   if (!error.status) console.error('주문 처리 실패:', error.code || error.name);
-  return res.status(error.status || 503).json({ success: false, message: error.status ? error.message : '주문 처리를 완료하지 못했습니다. 잠시 후 다시 시도해주세요.', ...extra });
+  const payload = { success: false, message: error.status ? error.message : '주문 처리를 완료하지 못했습니다. 잠시 후 다시 시도해주세요.', ...extra };
+  if (error.errors) payload.errors = error.errors;
+  return res.status(error.status || 503).json(payload);
 };
 const paymentIdValid = id => typeof id === 'string' && /^ord_[a-f0-9-]{36}$/.test(id);
 const owns = (order, userId) => order.userId.toString() === userId.toString();
