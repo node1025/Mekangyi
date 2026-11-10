@@ -1,14 +1,14 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-test('demo setup on an isolated MariaDB database', { skip: process.env.RUN_DEMO_INTEGRATION !== '1', timeout: 240000 }, async t => {
+test('dev setup on an isolated MariaDB database', { skip: process.env.RUN_DEV_INTEGRATION !== '1', timeout: 240000 }, async t => {
   const maria = require('../src/config/maria');
   const Product = require('../src/models/product/product');
   const Variant = require('../src/models/product/productvariant');
   const Inventory = require('../src/models/product/inventory');
   const User = require('../src/models/user');
-  const { seedProducts } = require('../scripts/seed-demo.cjs');
-  const { createDemoAdmin } = require('../scripts/create-demo-admin.cjs');
+  const { seedProducts } = require('../scripts/seed-dev.cjs');
+  const { createDevAdmin } = require('../scripts/create-dev-admin.cjs');
   t.after(() => maria.disconnect());
   await maria.connect(require('./mariaTestTarget.cjs')());
   for (const model of [Inventory, Variant, Product, User]) await model.deleteMany({});
@@ -73,7 +73,7 @@ test('demo setup on an isolated MariaDB database', { skip: process.env.RUN_DEMO_
   });
 
   await t.test('admin uses a random hashed password and cannot reset or promote an existing account', async () => {
-    const credentials = await createDemoAdmin();
+    const credentials = await createDevAdmin();
     const user = await User.findOne({ userId: credentials.userId });
     assert.equal(user.role, 'admin');
     assert.notEqual(user.password, credentials.password);
@@ -81,32 +81,30 @@ test('demo setup on an isolated MariaDB database', { skip: process.env.RUN_DEMO_
     assert.ok(!(await user.comparePassword('wrong-password')));
     const hash = user.password;
     await User.updateOne({ _id: user._id }, { $set: { role: 'user' } });
-    await assert.rejects(createDemoAdmin(), /이미 존재/);
+    await assert.rejects(createDevAdmin(), /이미 존재/);
     const unchanged = await User.findById(user._id);
     assert.equal(unchanged.role, 'user');
     assert.equal(unchanged.password, hash);
     assert.equal(await User.countDocuments(), 1);
   });
 
-  await t.test('documented CLI commands use only the explicit demo database', async () => {
+  await t.test('documented CLI commands use only the explicit dev database', async () => {
     const { execFile } = require('node:child_process');
     const { promisify } = require('node:util');
     const path = require('node:path');
     const execute = promisify(execFile);
-    const env = { ...process.env, NODE_ENV: 'development', DEMO_MARIADB_URI: process.env.TEST_MARIADB_URI, MARIADB_URI: 'mariadb://127.0.0.1:1/never_connect_here' };
+    const env = { ...process.env, NODE_ENV: 'development', DEV_MARIADB_URI: process.env.TEST_MARIADB_URI, MARIADB_URI: 'mariadb://127.0.0.1:1/never_connect_here' };
     const options = { cwd: path.join(__dirname, '..'), env, timeout: 30000 };
-    const seeded = await execute(process.execPath, ['scripts/seed-demo.cjs'], options);
+    const seeded = await execute(process.execPath, ['scripts/seed-dev.cjs'], options);
     assert.match(seeded.stdout, /상품 7개/);
     assert.equal(await Product.countDocuments(), 7);
     await User.deleteMany({});
-    const created = await execute(process.execPath, ['scripts/create-demo-admin.cjs'], options);
-    assert.match(created.stdout, /관리자 아이디: demoAdmin/);
-    const password = created.stdout.match(/일회성 표시 비밀번호: (\S+)/)[1];
-    assert.ok(await (await User.findOne({ userId: 'demoAdmin' })).comparePassword(password));
-    await assert.rejects(execute(process.execPath, ['scripts/seed-demo.cjs'], {
-      ...options, env: { ...env, DEMO_MARIADB_URI: 'mariadb://127.0.0.1/production' }
-    }), error => error.code === 1 && /_demo/.test(error.stderr));
+    const created = await execute(process.execPath, ['scripts/create-dev-admin.cjs'], options);
+    assert.match(created.stdout, /관리자 아이디: mekang1223/);
+    const password = created.stdout.match(/로그인 비밀번호\(일회성\): (\S+)/)[1];
+    assert.ok(await (await User.findOne({ userId: 'mekang1223' })).comparePassword(password));
+    await assert.rejects(execute(process.execPath, ['scripts/seed-dev.cjs'], {
+      ...options, env: { ...env, DEV_MARIADB_URI: 'mariadb://127.0.0.1/production' }
+    }), error => error.code === 1 && /_dev/.test(error.stderr));
   });
 });
-
-

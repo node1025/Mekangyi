@@ -224,6 +224,7 @@ onUnmounted(() => {
               <div class="divider"></div>
 
               <RouterLink to="/profile" @click="closeMenu">회원정보관리</RouterLink>
+              <RouterLink to="/profile?section=orders" @click="closeMenu">주문 내역</RouterLink>
               
               <button @click="handleLogout">로그아웃</button>
             </template>

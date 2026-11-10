@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '../../utils/userStore';
+import { resolveMypageSection, type MypageSection } from '../../constants/mypageSections';
 import axios from 'axios';
 import ProfileForm from '../mypage/ProfileForm.vue';
 import ShippingAddress from '../mypage/ShippingAddress.vue';
@@ -8,13 +10,22 @@ import MyOrders from '../mypage/MyOrders.vue';
 import MyWishlist from '../mypage/MyWishlist.vue';
 
 const userStore = useUserStore();
+const route = useRoute();
+const router = useRouter();
 
 // 상태 관리
 const isPending = ref(false);
 const isVerified = ref(false); 
 const currentPassword = ref('');
-const activeMenu = ref('profile');
+const activeMenu = ref<MypageSection>(resolveMypageSection(route.query.section));
 const withdrawPassword = ref(''); // 탈퇴용 비밀번호 입력값
+
+watch(
+  () => route.query.section,
+  (section) => {
+    activeMenu.value = resolveMypageSection(section);
+  }
+);
 
 const SERVER_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
@@ -32,7 +43,10 @@ const form = reactive({
   }
 });
 
-const setActiveMenu = (menu: string) => { activeMenu.value = menu; };
+const setActiveMenu = (menu: MypageSection) => {
+  activeMenu.value = menu;
+  router.replace({ path: '/profile', query: menu === 'profile' ? {} : { section: menu } });
+};
 
 // 비밀번호 확인 함수
 const verifyPassword = async () => {
@@ -161,7 +175,7 @@ const handleWithdraw = async () => {
         <div class="menu-group">
           <p class="group-label">고객센터</p>
           <ul class="menu-list">
-            <li class="menu-item" :class="{ active: activeMenu === 'qna' }" @click="activeMenu = 'qna'"> 1:1 문의 </li>
+            <li class="menu-item" :class="{ active: activeMenu === 'qna' }" @click="setActiveMenu('qna')"> 1:1 문의 </li>
             <li class="menu-item delete-account" :class="{ active: activeMenu === 'withdraw' }" @click="setActiveMenu('withdraw')"> 회원탈퇴 </li>
           </ul>
         </div>

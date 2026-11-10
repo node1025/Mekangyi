@@ -4,13 +4,13 @@ const path = require('node:path');
 const Product = require('../src/models/product/product');
 const Variant = require('../src/models/product/productvariant');
 const Inventory = require('../src/models/product/inventory');
-const catalog = require('../data/demo-products.json');
-const { runDemo } = require('./demo-db.cjs');
+const catalog = require('../data/dev-products.json');
+const { runDev } = require('./dev-db.cjs');
 
 async function seedProducts() {
   for (const item of catalog) {
     for (const image of [item.images.thumbnail, ...item.images.gallery]) {
-      if (!fs.existsSync(path.join(__dirname, '..', image))) throw new Error('데모 DB 상품 이미지 파일이 누락되었습니다.');
+      if (!fs.existsSync(path.join(__dirname, '..', image))) throw new Error('개발 DB 상품 이미지 파일이 누락되었습니다.');
     }
   }
   await Promise.all([Product, Variant, Inventory].map(model => model.init()));
@@ -40,10 +40,12 @@ async function seedProducts() {
   } finally { await session.endSession(); }
 }
 
-if (require.main === module) runDemo(async () => {
-  const result = await seedProducts();
-  console.log(`추가: 상품 ${result.products}개 / 색상 ${result.variants}개 / 사이즈별 재고 ${result.inventories}개`);
-  console.log(`기존 상품 ${result.skippedProducts}개는 가격·옵션·재고를 변경하지 않고 건너뛰었습니다.`);
-});
+if (require.main === module) {
+  runDev(async () => {
+    const result = await seedProducts();
+    console.log(`추가: 상품 ${result.products}개 / 색상 ${result.variants}개 / 사이즈별 재고 ${result.inventories}개`);
+    console.log(`기존 상품 ${result.skippedProducts}개는 가격·옵션·재고를 변경하지 않고 건너뛰었습니다.`);
+  });
+}
 
 module.exports = { seedProducts };

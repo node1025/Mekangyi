@@ -2,27 +2,28 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { demoTarget } = require('../scripts/demo-db.cjs');
-const catalog = require('../data/demo-products.json');
+const { devTarget } = require('../scripts/dev-db.cjs');
+const catalog = require('../data/dev-products.json');
 const Product = require('../src/models/product/product');
 const Variant = require('../src/models/product/productvariant');
 const Inventory = require('../src/models/product/inventory');
 const { ObjectId } = require('../src/models/mariaSchema');
 const { salePriceFromProduct } = require('../src/utils/productPricing');
 
-test('demo setup requires an explicitly named non-production database', () => {
+test('dev setup requires an explicitly named non-production database', () => {
   for (const env of [
     {}, { LEGACY_DB_URI: 'mariadb://127.0.0.1/live' },
-    { DEMO_MARIADB_URI: 'mariadb://127.0.0.1/live' },
-    { DEMO_MARIADB_URI: 'mariadb://127.0.0.1/' },
-    { DEMO_MARIADB_URI: 'https://example.com/shop_demo' },
-    { NODE_ENV: 'production', DEMO_MARIADB_URI: 'mariadb://127.0.0.1/shop_demo' }
-  ]) assert.throws(() => demoTarget(env));
-  assert.equal(demoTarget({ DEMO_MARIADB_URI: 'mariadb://127.0.0.1/shop_demo?replicaSet=rs0' }).database, 'shop_demo');
-  assert.equal(demoTarget({ DEMO_MARIADB_URI: 'mariadb://cluster.example.com/shop_demo' }).database, 'shop_demo');
+    { DEV_MARIADB_URI: 'mariadb://127.0.0.1/live' },
+    { DEV_MARIADB_URI: 'mariadb://127.0.0.1/' },
+    { DEV_MARIADB_URI: 'https://example.com/shop_dev' },
+    { NODE_ENV: 'production', DEV_MARIADB_URI: 'mariadb://127.0.0.1/shop_dev' },
+    { DEV_MARIADB_URI: 'mariadb://127.0.0.1/bukang_shop_test_dev' },
+  ]) assert.throws(() => devTarget(env));
+  assert.equal(devTarget({ DEV_MARIADB_URI: 'mariadb://127.0.0.1/shop_dev?replicaSet=rs0' }).database, 'shop_dev');
+  assert.equal(devTarget({ DEV_MARIADB_URI: 'mariadb://cluster.example.com/bukang_shop_dev' }).database, 'bukang_shop_dev');
 });
 
-test('demo catalog matches requested prices, sizes and stock and references packaged images', async () => {
+test('dev catalog matches requested prices, sizes and stock and references packaged images', async () => {
   const expected = [
     ['bukangi_plush_doll', 24900, 2, ['프리'], 100],
     ['bukangi_doll_keyring', 12900, 2, ['프리'], 100],

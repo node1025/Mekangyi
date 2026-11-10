@@ -17,7 +17,7 @@ onMounted(() => {
 const formatPrice = (price) => price?.toLocaleString();
 
 const goToHome = () => router.push('/');
-const goToOrders = () => router.push('/profile');
+const goToOrders = () => router.push({ path: '/profile', query: { section: 'orders' } });
 </script>
 
 <template>

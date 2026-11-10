@@ -2,8 +2,8 @@ const maria = require('../src/config/maria');
 const Product = require('../src/models/product/product');
 const Variant = require('../src/models/product/productvariant');
 const Inventory = require('../src/models/product/inventory');
-const catalog = require('../data/demo-products.json');
-const { runDemo } = require('./demo-db.cjs');
+const catalog = require('../data/dev-products.json');
+const { runDev } = require('./dev-db.cjs');
 const codes = new Set(['bukangi_tshirt', 'bukangi_plush_doll', 'bukangi_doll_keyring', 'bukangi_mousepad']);
 
 // Add requested colors without replacing product IDs, prices or consumed stock.
@@ -12,7 +12,7 @@ async function updateGoodsOptions() {
     const summary = { products: 0, createdVariants: 0, createdInventories: 0 };
     for (const item of catalog.filter(row => codes.has(row.product.productCode))) {
       const product = await Product.findOne({ productCode: item.product.productCode }).session(session);
-      if (!product) throw new Error('먼저 seed:demo로 상품을 준비해주세요.');
+      if (!product) throw new Error('먼저 seed:dev로 상품을 준비해주세요.');
       for (const definition of item.variants) {
         let variant = await Variant.findOne({ productId: product._id, variantCode: definition.variantCode }).session(session);
         if (variant) {
@@ -36,5 +36,5 @@ async function updateGoodsOptions() {
     return summary;
   });
 }
-if (require.main === module) runDemo(async () => console.log(await updateGoodsOptions()));
+if (require.main === module) runDev(async () => console.log(await updateGoodsOptions()));
 module.exports = { updateGoodsOptions };

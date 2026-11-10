@@ -169,7 +169,7 @@ def main() -> None:
         "• 가용성: Multi-AZ(권장) 또는 단일 AZ + 자동 백업 7일\n"
         "• 접근: sg-app에서만 3306, 퍼블릭 접근 비활성화\n"
         "• 자격증명: Secrets Manager 또는 Parameter Store (평문 .env 미사용)\n"
-        "• 데모/통합 DB: 별도 DB명(_demo, _test_demo) — 운영 DB와 분리(애플리케이션 정책과 동일)"
+        "• 개발/통합 DB: 별도 DB명(_dev, _test_dev) — 운영 DB와 분리(애플리케이션 정책과 동일)"
     )
     doc.add_heading("7.2 대안: EC2 자가 설치 MariaDB", level=2)
     doc.add_paragraph(
