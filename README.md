@@ -1,303 +1,111 @@
-# 🛍️ 부캉이 굿즈샵
+# 부캉이 굿즈샵 · shopping_mall v3.4
 
-**shopping_mall v3.4** · Vue 3 + Express + MariaDB
+Vue 3(고객몰·관리자) + Express API + MariaDB. **로컬 설치·실행** 안내입니다.
 
-고객몰, 관리자 사이트, API 서버를 분리한 굿즈 쇼핑몰 프로젝트입니다. 이 문서는 **처음 설치하는 개발자**가 로컬 환경에서 서비스를 실행하고 기본 동작을 확인할 수 있도록 작성했습니다.
-
-> **처음 실행한다면:** [준비 사항](#준비-사항)을 확인한 뒤 [빠른 시작](#빠른-시작)의 **1~7단계**를 순서대로 진행하세요.
->
-
-## 목차
-
-1. [프로젝트 구조](#프로젝트-구조)
-2. [준비 사항](#준비-사항)
-3. [빠른 시작](#빠른-시작)
-4. [접속 주소](#접속-주소)
-5. [로컬 동작 구조](#로컬-동작-구조)
-6. [주요 기능 및 데이터](#주요-기능-및-데이터)
-7. [문제 해결](#문제-해결)
-8. [테스트](#테스트)
-9. [운영 배포 시 주의사항](#운영-배포-시-주의사항)
-10. [관련 문서](#관련-문서)
-
----
+> [준비 사항](#준비-사항) 확인 후 [빠른 시작](#빠른-시작) **1~7단계**를 순서대로 진행하세요.  
+> VS Code는 **Run Task**에서 `★ VS Code: 처음 설치` 또는 `★ VS Code: 로컬 실행 (빌드+스택+고객몰)`을 사용할 수 있습니다.
 
 ## 프로젝트 구조
 
 ```text
 shopping_mall/
-├── client/     # 고객 전용 Vue 앱
-├── admin/      # 관리자 전용 Vue 앱
-├── server/     # Express API 및 MariaDB 연동
-├── deploy/     # Nginx·IP 허용 목록·운영 배포 설정
-└── scripts/    # 분리형 웹·API 로컬 실행 도구
+├── client/   # 고객몰
+├── admin/    # 관리자
+├── server/   # API·DB
+├── deploy/   # Nginx·운영 설정
+└── scripts/  # 로컬 게이트웨이·스택 실행
 ```
-
-| 디렉터리 | 역할 |
-| --- | --- |
-| `client/` | 상품 조회·장바구니·주문 등을 제공하는 고객몰. 관리자 화면과 관리자 진입 링크를 포함하지 않음 |
-| `admin/` | 별도 로그인 후 상품·주문·게시판을 관리하는 임직원용 웹 앱 |
-| `server/` | 회원·상품·장바구니·주문·게시판 API 및 MariaDB 연동 |
-| `deploy/` | 고객몰·관리자용 Nginx 설정, 관리자 IP 허용 목록, 서버 직접 배포 문서 |
-| `scripts/` | 로컬 웹 게이트웨이 및 API 실행을 지원하는 스크립트 |
 
 ## 준비 사항
 
-| 항목 | 요구 사항 |
+| 항목 | 요구 |
 | --- | --- |
-| Node.js | **22.12 이상** |
-| MariaDB | **11.4**, 서비스 실행 상태 |
-| 터미널 | Windows PowerShell 또는 macOS/Linux 셸 |
-| 프로젝트 파일 | Git 저장소 복제 또는 ZIP 압축 해제 |
-
-확인 예시:
-
-```sh
-node --version
-npm --version
-```
-
-> **중요:** 보안을 위해 `server/.env`는 저장소 및 공유 ZIP에 포함되지 않습니다. `server/.env.example`을 복사한 뒤 **직접 값을 설정**해야 합니다.
+| Node.js | 22.12+ |
+| MariaDB | 11.4 (실행 중) |
+| `server/.env` | `server/.env.example` 복사 후 직접 작성 (저장소·ZIP에 없음) |
 
 ## 빠른 시작
 
-다음 명령은 별도 안내가 없는 한 **프로젝트 루트(`shopping_mall/`)**에서 실행합니다.
+명령은 **프로젝트 루트**에서 실행합니다.
 
-- [ ] **1.** MariaDB 데이터베이스 및 계정 만들기
-- [ ] **2.** `server/.env` 생성 및 값 입력
-- [ ] **3.** npm 패키지 설치
-- [ ] **4.** 데이터베이스 테이블 초기화
-- [ ] **5.** 개발용 데이터·관리자 계정 생성(선택)
-- [ ] **6.** 고객몰·관리자 빌드
-- [ ] **7.** 로컬 웹 스택 실행
-
-### 1. MariaDB 데이터베이스 및 계정 만들기
-
-MariaDB에 **계정 생성 권한이 있는 사용자**로 로그인한 다음 아래 SQL을 실행합니다. `여기에_강력한_비밀번호`는 실제 비밀번호로 변경하세요.
+### 1. MariaDB
 
 ```sql
 CREATE DATABASE IF NOT EXISTS bukang_shop_dev
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_bin;
-
-CREATE USER IF NOT EXISTS 'bukang'@'127.0.0.1'
-  IDENTIFIED BY '여기에_강력한_비밀번호';
-
-GRANT ALL PRIVILEGES ON bukang_shop_dev.*
-  TO 'bukang'@'127.0.0.1';
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+CREATE USER IF NOT EXISTS 'bukang'@'127.0.0.1' IDENTIFIED BY '여기에_강력한_비밀번호';
+GRANT ALL PRIVILEGES ON bukang_shop_dev.* TO 'bukang'@'127.0.0.1';
 ```
 
-- 예시 DB 이름: `bukang_shop_dev`
-- 예시 DB 계정: `bukang`
-- 예시 접속 주소: `127.0.0.1:3306`
-- 위 권한은 **로컬 개발 전용 예시**입니다. 운영 환경에는 별도의 최소 권한 계정을 사용하세요.
-- 이미 동일한 계정이 존재하면 `CREATE USER IF NOT EXISTS`가 **기존 비밀번호를 변경하지 않습니다**. 이 경우 기존 비밀번호를 확인하거나 별도로 변경해야 합니다.
-
-### 2. `server/.env` 만들기
-
-운영체제에 맞는 명령으로 예시 파일을 복사합니다.
-
-**Windows PowerShell**
+### 2. `server/.env`
 
 ```powershell
-Copy-Item server\.env.example server\.env
+Copy-Item server\.env.example server\.env   # Windows
 ```
-
-**macOS / Linux**
 
 ```sh
-cp server/.env.example server/.env
+cp server/.env.example server/.env          # macOS / Linux
 ```
 
-생성된 `server/.env` 파일에서 다음 항목을 설정합니다.
-
-| 환경변수 | 설명 |
-| --- | --- |
-| `MARIADB_URI` | 애플리케이션 DB 연결 URI |
-| `DEV_MARIADB_URI` | 개발용 데이터 시드에서 사용할 URI. 일반적으로 같은 개발 DB를 가리킴 |
-| `JWT_SECRET` | 로그인 토큰 서명용 비밀값 |
-| `JWT_REFRESH_SECRET` | 리프레시 토큰 서명용 비밀값. `JWT_SECRET`과 다른 값이어야 함 |
-
-형식 예시(아래 값은 **실제 비밀번호·시크릿이 아닙니다**):
-
-```dotenv
-MARIADB_URI=mariadb://bukang:DB_PASSWORD@127.0.0.1:3306/bukang_shop_dev
-DEV_MARIADB_URI=mariadb://bukang:DB_PASSWORD@127.0.0.1:3306/bukang_shop_dev
-JWT_SECRET=GENERATE_A_UNIQUE_RANDOM_SECRET
-JWT_REFRESH_SECRET=GENERATE_ANOTHER_UNIQUE_RANDOM_SECRET
-```
-
-JWT 비밀값은 프로젝트 루트에서 아래 명령을 **두 번 각각 실행**해 생성합니다.
+필수: `MARIADB_URI`, `DEV_MARIADB_URI`, `JWT_SECRET`, `JWT_REFRESH_SECRET` (서로 다른 랜덤 값).
 
 ```sh
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-첫 번째 출력값은 `JWT_SECRET`, 두 번째 출력값은 `JWT_REFRESH_SECRET`에 사용합니다. 생성된 값은 공개 저장소나 채팅에 공유하지 마세요.
-
-> DB 비밀번호에 `@`, `#`, `/`, `:` 같은 예약 문자가 들어가면 URI에서 **퍼센트 인코딩**이 필요할 수 있습니다. 설정 파일의 다른 필드는 `server/.env.example`의 안내를 따르세요.
->
-> 로컬 `start-all` 방식에서는 `client/.env`와 `admin/.env`가 없어도 됩니다. 웹 게이트웨이가 각 사이트의 `/api` 요청을 API 서버로 전달합니다.
-
-### 3. npm 패키지 설치
+### 3~7.
 
 ```sh
-npm ci
-```
-
-`package-lock.json`이 없거나 lockfile 관련 오류가 발생하면 다음을 사용합니다.
-
-```sh
-npm install
-```
-
-### 4. 데이터베이스 테이블 초기화
-
-```sh
+npm ci                    # 또는 npm install
 npm run db:init
-```
-
-정상 연결 시 `MariaDB 연결 성공` 메시지를 확인합니다. 오류가 발생하면 MariaDB 서비스 실행 여부와 `MARIADB_URI`의 계정·비밀번호·호스트·DB 이름을 확인하세요.
-
-### 5. 개발용 데이터 및 관리자 계정 생성(선택)
-
-첫 실행 시에는 데모 데이터를 넣고 관리자 계정을 만드는 것을 권장합니다.
-
-```sh
-npm run seed:dev
-npm run admin:dev
-```
-
-- `seed:dev`는 개발용 시드 데이터를 준비합니다.
-- `admin:dev`는 관리자 계정이 없을 때 생성하며, 터미널에 **관리자 ID(기본 `mekang1223`)와 로그인 비밀번호를 한 번 출력**합니다.
-- 이미 관리자가 있으면 새 계정을 만들지 않습니다.
-
-> 관리자 비밀번호를 안전하게 보관하세요. 초기 출력값을 놓쳤다면 [비밀번호 재설정](#관리자-비밀번호를-잊어버렸어요)을 진행합니다.
->
-> **주의:** `seed:dev` 및 `admin:dev`는 개발 환경에서만 사용하세요.
-
-### 6. 고객몰·관리자 빌드
-
-```sh
+npm run seed:dev          # 선택
+npm run admin:dev         # 선택, 기본 관리자 ID mekang1223
 npm run build:local
-```
-
-빌드가 완료되면 `client/dist` 및 `admin/dist`가 준비됩니다. 이 폴더가 없으면 로컬 웹 스택에서 화면이 비거나 404가 발생할 수 있습니다.
-
-### 7. 로컬 웹 스택 실행
-
-```sh
 npm run start-all
 ```
 
-터미널을 **열어둔 상태로** [접속 주소](#접속-주소)에 접속합니다. 종료하려면 실행 중인 터미널에서 `Ctrl+C`를 누릅니다.
-
-코드를 수정한 경우, 일반적으로 **6단계 빌드 → 7단계 실행** 순서로 다시 진행합니다. VS Code 작업 `★ VS Code: 로컬 실행 (빌드+스택+고객몰)`을 사용할 수도 있습니다.
+스택 재시작 전 `npm run stop-local` (포트 점유 시).  
+코드 수정 후에는 **`build:local` → `start-all`**.  
+404·50x·API JSON: VS Code `★ VS Code: 고객몰 404·오류 페이지 반영`, `★ VS Code: API 오류 JSON 반영`.
 
 ## 접속 주소
 
-| 서비스 | 주소 | 비고 |
-| --- | --- | --- |
-| 고객몰 | <http://127.0.0.1:8080> | 고객용 웹 사이트 |
-| 관리자 | <http://localhost:9081/login> | **Windows 기본 포트 9081**; macOS/Linux에서는 8081일 수 있음 |
-| 로컬 메일함 | <http://127.0.0.1:8025> | 개발용 메일 확인 |
-| API | `127.0.0.1:5002` | 브라우저에서 직접 접근하는 대신 각 웹 사이트의 `/api` 프록시 사용 |
-
-> `127.0.0.1` 및 `localhost`는 **현재 실행 중인 컴퓨터 자신**을 뜻합니다. 다른 PC나 가상머신에서 이 주소로 접속하면 개발 PC의 쇼핑몰이 아닌 **해당 기기 자신**을 가리킵니다. 기본 로컬 설정을 외부 접속용으로 간주하지 마세요.
-
-## 로컬 동작 구조
+| 서비스 | 주소 |
+| --- | --- |
+| 고객몰 | http://127.0.0.1:8080 |
+| 관리자 | http://localhost:9081/login (Windows 기본; macOS/Linux는 로그상 8081일 수 있음) |
+| API | 내부 5002 — 브라우저는 각 사이트의 `/api` 사용 |
 
 ```text
-[고객 브라우저]   → [고객 웹 게이트웨이 :8080]   ──┐
-                                             ├── /api → [Express API :5002] → [MariaDB :3306]
-[관리자 브라우저] → [관리자 웹 게이트웨이 :9081] ──┘
+브라우저 → 게이트웨이(8080 / 9081) → Express(5002) → MariaDB(3306)
 ```
 
-- 고객몰과 관리자 화면은 각각 빌드된 Vue 정적 파일을 **Node 웹 게이트웨이**에서 제공합니다.
-- API는 별도 **Express** 서버에서 처리하고, 데이터는 **MariaDB**에 저장합니다.
-- 브라우저는 각 사이트의 `/api` 경로를 이용하며, API·DB 포트를 외부에 직접 공개할 필요가 없습니다.
-- 관리자 사이트는 기본적으로 **루프백 주소(127.0.0.1)** 접근만 허용하도록 구성되어 있습니다.
-- 운영 배포용 Nginx 관련 설정은 `deploy/`에 있습니다.
+`npm run dev:shop` / `dev:admin`은 Vite 개발용입니다. IP 제한·프록시 동작은 `start-all` 기준으로 확인하세요.
 
-화면 개발 중에는 다음 Vite 스크립트를 사용할 수 있습니다.
-
-```sh
-npm run dev:shop
-npm run dev:admin
-```
-
-다만 **IP 제한과 운영 환경에 가까운 URL 경로·접근 동작 검증**은 `npm run start-all` 실행 기준으로 확인하세요.
-
-## 주요 기능 및 데이터
-
-| 영역 | 내용 |
-| --- | --- |
-| 상품 콘텐츠 | 캐러셀 3종, 굿즈 7종, 상품 사진 28장 및 부캉이 캐릭터 이미지 |
-| 가격 | API 조회 기반, `regular`·`always`·`event` 가격 모드 지원 |
-| 고객 기능 | 회원, 상품 조회, 장바구니, 주문, 게시판 |
-| 관리자 기능 | 별도 로그인, 상품·주문·게시판 관리 |
-| 접근 제어 | 관리자 JWT 로그인과 15분 보호 세션(쿠키)을 함께 확인 |
-| 데이터 처리 | 게시판 작성자·비공개글·관리자 권한 확인, 주문 재고 트랜잭션 유지 |
-
-상품 시드 파일은 `server/data/dev-products.json`입니다. 관리자가 가격을 저장하면 고객 화면은 **탭 복귀·창 포커스·30초 주기 조회**를 통해 변경된 가격을 반영합니다.
-
-> **결제 및 이메일:** 실제 결제 처리와 외부 메일 발송에는 별도 서비스 연동 및 설정이 필요합니다. 로컬 메일함이 실제 이메일 발송을 의미하지는 않습니다.
+비밀번호 재설정(로컬): `RESET_MAIL_MODE=local`이면 링크는 `server/.local-mail`에 저장됩니다. **8025 웹 메일함**은 기본으로 뜨지 않으며, 필요할 때만 `server/.env`에 `LOCAL_MAILBOX=1`을 넣고 `start-all` 하세요.
 
 ## 문제 해결
 
-| 증상 | 가능한 원인 | 확인 및 조치 |
-| --- | --- | --- |
-| `MARIADB_URI를 … 설정해주세요` | `server/.env` 누락 또는 URI 미설정 | [2단계](#2-serverenv-만들기)에서 파일 생성 및 값 확인 |
-| MariaDB 연결 실패 | DB 서비스 미실행, 사용자·비밀번호·DB·호스트 불일치 | [1단계](#1-mariadb-데이터베이스-및-계정-만들기)와 [2단계](#2-serverenv-만들기) 확인 |
-| 로그인 실패 또는 API 403/500 | JWT 설정, 인증·권한, 서버 오류 등 | 두 JWT 비밀값 및 API 서버 로그 확인 후 웹 스택 재실행 |
-| 빈 화면 또는 404 | `client/dist`·`admin/dist` 누락, 빌드 오류 | `npm run build:local` 후 재실행 |
-| 포트 사용 중(`EADDRINUSE`) | 8080·9081·5002 등의 포트 점유 | `npm run stop-local` 실행 또는 `LOCAL_*_PORT` 설정 확인 |
-| 관리자 접속 불가 | 포트 차이 또는 루프백 접근 제한 | 실행 로그의 관리자 포트, 접속한 기기 및 관리자 허용 설정 확인 |
+| 증상 | 조치 |
+| --- | --- |
+| `MARIADB_URI` 오류 | `server/.env` 생성·URI 확인 |
+| MariaDB 연결 실패 | DB 서비스·계정·DB 이름 확인 |
+| 빈 화면 | `npm run build:local` |
+| 없는 고객몰 URL | NotFound 화면(정상) |
+| API 502 | Express 실행 여부; `/api/*`는 JSON 오류 |
+| `EADDRINUSE` | `npm run stop-local` |
+| 관리자 접속 불가 | 로그의 관리자 포트·루프백(127.0.0.1) 확인 |
 
-### 관리자 비밀번호를 잊어버렸어요
-
-프로젝트 루트에서 다음 명령을 실행합니다.
-
-```sh
-npm run admin:reset-password
-```
-
-VS Code 작업 `Admin: reset password`를 이용해도 됩니다.
+관리자 비밀번호 재설정: `npm run admin:reset-password` (VS Code: `Admin: reset password`).
 
 ## 테스트
 
-프로젝트 루트에서 테스트와 빌드를 실행합니다.
-
 ```sh
 npm test
-npm run build
-npm run test:mariadb
+npm run test:http-errors   # 404·502 JSON (Express·게이트웨이)
+npm run test:mariadb       # TEST_MARIADB_URI 전용 DB만, 초기화됨
 ```
 
-> **데이터 손실 주의:** `npm run test:mariadb`는 테스트 DB를 **초기화**합니다. 실행 전에 `TEST_MARIADB_URI`를 실제 애플리케이션 DB와 **완전히 분리된 `_test_dev` 전용 DB**로 지정했는지 반드시 확인하세요. 운영 DB나 일반 개발 DB에 실행하지 마세요.
+## 운영 배포
 
-## 운영 배포 시 주의사항
-
-현재 문서의 기본 설정은 **로컬 개발용**입니다. 인터넷 공개 운영을 시작하기 전에 아래 항목을 별도로 준비하고 검증해야 합니다.
-
-- **접근 경로:** 운영 도메인과 TLS 인증서를 구성하고, 관리자 화면은 VPN·사내망·허용 IP 등으로 접근을 제한합니다.
-- **네트워크:** API·MariaDB는 외부에 직접 노출하지 않으며, 필요한 내부 통신만 허용합니다.
-- **비밀정보:** `.env`, JWT 시크릿, DB 비밀번호, 인증서 개인키를 Git이나 배포 ZIP에 포함하지 않습니다.
-- **운영 데이터:** 개발용 시드·관리자 생성 스크립트를 운영 DB에 실행하지 않고, 최소 권한 DB 계정과 백업 정책을 사용합니다.
-- **보안 검증:** 인증·권한·세션·입력 검증·HTTPS 동작을 실제 운영 구성에서 다시 점검합니다.
-
-프로젝트에 포함된 배포 설정은 `deploy/`를 참고하세요. 이 README의 내용만으로 **외부 배포, VPN 서버 설치 또는 보안 검증이 완료된 것은 아닙니다**.
-
-공유 ZIP에는 일반적으로 `.env`, 인증서 개인키, DB 파일, `node_modules`, `dist`를 포함하지 않습니다. 상품 원본 이미지 및 캐러셀 PNG는 포함됩니다.
-
-## 관련 문서
-
-| 문서 | 내용 |
-| --- | --- |
-| [deploy/운영배포.md](./deploy/운영배포.md) | TLS, 사내망·VPN, 허용 IP 설정 및 서버 배포 안내 |
-| [deploy/nginx/admin-allowlist.conf](./deploy/nginx/admin-allowlist.conf) | 관리자 접근 허용 IP 설정 |
-
----
-
-**버전:** v3.4  
-**문서 목적:** 로컬 설치·실행 가이드 및 운영 배포 전 점검 사항 안내
+기본 설정은 **로컬용**입니다. 공개 운영 전 TLS·관리자 접근 제한(VPN/IP)·`.env`·시드 스크립트 미사용·HTTPS 검증을 별도로 준비하세요. Nginx 예시는 `deploy/` (고객몰 `shop.conf`, 관리자 `admin.conf`, [관리자-접근-설정.md](./deploy/관리자-접근-설정.md)).
