@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "npm --prefix server test",
+    "test:http-errors": "npm --prefix server run test:http-errors",
     "build": "npm --prefix client run build && npm --prefix admin run build",
     "build:local": "node scripts/build-local.cjs",
     "start-all": "node scripts/start-local-stack.cjs",

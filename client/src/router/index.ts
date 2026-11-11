@@ -19,6 +19,7 @@ import AccPage from '../views/category/AccPage.vue';
 import BoardDetail from '../components/board/BoardDetail.vue';
 import BoardPage from '../components/board/BoardPage.vue';
 import SearchView from '../views/SearchView.vue';
+import NotFound from '../views/NotFound.vue';
 
 // 라우터 경로 설정
 const routes = [
@@ -101,7 +102,12 @@ const routes = [
     path:'/board/:id',        // 게시글 상세
     name: 'BoardDetail',
     component: BoardDetail
-  }
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: NotFound,
+  },
 ];
 
 // 라우터 생성

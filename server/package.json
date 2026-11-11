@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test",
+    "test:http-errors": "node --test test/httpErrors.test.js test/serviceSeparation.test.js",
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "seed:dev": "node scripts/seed-dev.cjs",

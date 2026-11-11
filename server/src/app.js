@@ -52,6 +52,10 @@ app.get('/', (req, res) => {
     res.send('서버와 MariaDB가 정상적으로 연결되었습니다.');
 });
 
+const { notFoundHandler, errorHandler } = require('./middleware/httpErrors');
+app.use(notFoundHandler);
+app.use(errorHandler);
+
 module.exports = app;
 
 // 서버 실행

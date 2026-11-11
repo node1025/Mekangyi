@@ -35,7 +35,12 @@ function gateway({root,uploads,admin=false,apiPort=5002,allowlist}) {
       const headers={...req.headers,'x-forwarded-for':req.socket.remoteAddress,'x-forwarded-proto':'http','x-forwarded-host':req.headers.host};
       delete headers['x-admin-gateway'];
       const upstream=http.request({host:'127.0.0.1',port:apiPort,path:req.url,method:req.method,headers},response=>{res.writeHead(response.statusCode,response.headers);response.pipe(res)});
-      upstream.on('error',()=>{if(!res.headersSent)res.writeHead(502);res.end('API unavailable')});req.pipe(upstream);return;
+      upstream.on('error',()=>{
+        if(res.headersSent)return;
+        res.writeHead(502,{'Content-Type':'application/json; charset=utf-8'});
+        res.end(JSON.stringify({message:'일시적으로 서비스를 사용할 수 없습니다.'}));
+      });
+      req.pipe(upstream);return;
     }
     if(!['GET','HEAD'].includes(req.method)){res.writeHead(405);return res.end('Method not allowed')}
     if(!admin&&/^\/admin(?:\/|$)/.test(pathname)){res.writeHead(404);return res.end('Not found')}
@@ -47,7 +52,11 @@ function gateway({root,uploads,admin=false,apiPort=5002,allowlist}) {
       if(image||path.extname(pathname)){res.writeHead(404);return res.end('Not found')}
       file=path.join(base,'index.html');
     }
-    if(!fs.existsSync(file)){res.writeHead(503);return res.end('Run npm run build first')}
+    if(!fs.existsSync(file)){
+      const fiftyX=path.join(base,'50x.html');
+      if(!admin&&fs.existsSync(fiftyX)&&!image){res.writeHead(503,{'Content-Type':'text/html; charset=utf-8'});return fs.createReadStream(fiftyX).pipe(res)}
+      res.writeHead(503);return res.end('Run npm run build first');
+    }
     res.setHeader('Content-Type',mime[path.extname(file)]||'application/octet-stream');
     const stat=fs.statSync(file);
     const ext=path.extname(file);

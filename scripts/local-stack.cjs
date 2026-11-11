@@ -4,7 +4,8 @@ require('../server/node_modules/dotenv').config({path:path.join(root,'server/.en
 const {gateway}=require('./web-gateway.cjs');
 const {createMailbox}=require('./local-mailbox.cjs');
 const mailMode=process.env.RESET_MAIL_MODE||'local';
-const mailbox=mailMode==='local'?createMailbox():null;
+const mailboxWanted=['1','true','yes'].includes(String(process.env.LOCAL_MAILBOX||'').toLowerCase());
+const mailbox=mailMode==='local'&&mailboxWanted?createMailbox():null;
 const apiPort=Number(process.env.LOCAL_API_PORT||5002);
 const shopPort=Number(process.env.LOCAL_SHOP_PORT||8080),adminPort=Number(process.env.LOCAL_ADMIN_PORT||8081);
 const stackEnv={...process.env,NODE_ENV:'development',RESET_MAIL_MODE:mailMode,LOCAL_PAYMENT_MODE:'true',HOST:'127.0.0.1',PORT:String(apiPort),FRONTEND_URL:'http://127.0.0.1:'+shopPort,ADMIN_FRONTEND_URL:'http://localhost:'+adminPort,ADMIN_GATEWAY_PEERS:'127.0.0.1,::1',TRUSTED_PROXIES:'127.0.0.1,::1',SERVE_UPLOADS:'true',LOCAL_IMAGE_UPLOADS:'true',LOCAL_STACK_IMAGE_NO_CACHE:'true'};

@@ -39,6 +39,22 @@ test('HTTP gateways serve static images without API and enforce administrator bo
  const response=await request(shopPort,'/api/products',{headers:{'X-Forwarded-For':'8.8.8.8'}});
  assert.equal(JSON.parse(response.body).forwarded,'127.0.0.1');
 });
+test('shop gateway returns JSON when API upstream is unavailable', async () => {
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'goods-gateway-down-'));
+ fs.writeFileSync(path.join(dir,'index.html'),'<h1>ok</h1>');
+ const shop=gateway({root:dir,uploads:path.join(dir,'uploads'),apiPort:1});
+ return new Promise((resolve,reject)=>{
+  shop.listen(0,'127.0.0.1',async ()=>{
+   const port=shop.address().port;
+   try{
+    const res=await request(port,'/api/products');
+    assert.equal(res.status,502);
+    assert.equal(JSON.parse(res.body).message,'일시적으로 서비스를 사용할 수 없습니다.');
+    resolve();
+   }catch(error){reject(error)}finally{shop.close(()=>fs.rmSync(dir,{recursive:true,force:true}))};
+  });
+ });
+});
 test('backend administrative sessions accept only configured direct gateway peers',()=>{
  const previous=process.env.ADMIN_GATEWAY_PEERS;
  process.env.ADMIN_GATEWAY_PEERS='172.30.0.11';
