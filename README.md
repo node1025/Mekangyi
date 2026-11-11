@@ -53,7 +53,7 @@ cp server/.env.example server/.env          # macOS / Linux
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-### 3~7.
+### 3.
 
 ```sh
 npm ci                    # 또는 npm install
