@@ -169,22 +169,16 @@ exports.getAllProducts = async (req, res) => {
         let query = { isDeleted: false };
 
         // 검색어가 있으면 검색 조건을 query 객체에 추가
-        if (search !== undefined && search !== null) {
-            if (typeof search !== 'string') {
-                return res.status(400).json({ message: '검색어는 100자 이하의 문자열이어야 합니다.' });
-            }
-            const trimmed = search.trim();
-            if (trimmed) {
-                const keyword = literalSearch(trimmed);
-                if (keyword === null) return res.status(400).json({ message: '검색어는 100자 이하의 문자열이어야 합니다.' });
-                query.$or = [
-                    { "name.ko": { $regex: keyword, $options: 'i' } },
-                    { "name.en": { $regex: keyword, $options: 'i' } },
-                    { category: { $regex: keyword, $options: 'i' } },
-                    { productCode: { $regex: keyword, $options: 'i' } },
-                    { description: { $regex: keyword, $options: 'i' } }
-                ];
-            }
+        if (search !== undefined && search !== null && String(search).trim()) {
+            const keyword = literalSearch(String(search).trim());
+            if (keyword === null) return res.status(400).json({ message: '검색어는 100자 이하의 문자열이어야 합니다.' });
+            query.$or = [
+                { "name.ko": { $regex: keyword, $options: 'i' } },
+                { "name.en": { $regex: keyword, $options: 'i' } },
+                { category: { $regex: keyword, $options: 'i' } },
+                { productCode: { $regex: keyword, $options: 'i' } },
+                { description: { $regex: keyword, $options: 'i' } }
+            ];
         }
 
         // 검색 조건이 반영된 query로 상품 조회 (중복 선언 제거됨)

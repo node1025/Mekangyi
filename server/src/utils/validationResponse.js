@@ -50,19 +50,15 @@ function validateShippingAddressFields(address) {
   else if (address.receiver.length > 50) set('receiver', '받는 분은 50자 이내로 입력해주세요.');
   if (!address.phone) set('phone', '연락처를 입력해주세요.');
   else if (!/^\d{10,11}$/.test(address.phone)) set('phone', '연락처는 숫자 10~11자리로 입력해주세요.');
-  // 주문 배송지는 address 필드를 쓰고, 우편번호·상세 주소는 비어 있어도 된다.
-  // 마이페이지 배송지는 basicAddress를 쓰며 두 값을 필수로 유지한다.
+  if (!address.zipCode) set('zipCode', '우편번호를 입력해주세요.');
+  else if (!/^\d{5}$/.test(address.zipCode)) set('zipCode', '우편번호는 5자리 숫자여야 합니다.');
   const usesOrderField = typeof address.address === 'string';
-  if (address.zipCode) {
-    if (!/^\d{5}$/.test(address.zipCode)) set('zipCode', '우편번호는 5자리 숫자여야 합니다.');
-  } else if (!usesOrderField) set('zipCode', '우편번호를 입력해주세요.');
   const basicKey = usesOrderField ? 'address' : 'basicAddress';
   const basic = (usesOrderField ? address.address : address.basicAddress) || '';
   if (!basic) set(basicKey, '기본 주소를 입력해주세요. 주소 검색을 이용해주세요.');
   else if (basic.length > 200) set(basicKey, '기본 주소는 200자 이내로 입력해주세요.');
-  if (address.detailAddress) {
-    if (address.detailAddress.length > 200) set('detailAddress', '상세 주소는 200자 이내로 입력해주세요.');
-  } else if (!usesOrderField) set('detailAddress', '상세 주소를 입력해주세요.');
+  if (!address.detailAddress) set('detailAddress', '상세 주소를 입력해주세요.');
+  else if (address.detailAddress.length > 200) set('detailAddress', '상세 주소는 200자 이내로 입력해주세요.');
   if (!Object.keys(errors).length) return null;
   return { message: summarizeErrors(errors), errors };
 }

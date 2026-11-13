@@ -1,13 +1,20 @@
 const mariadb = require('mariadb');
+const fs = require('fs');
 let pool;
 const registry = new Map();
+function sslOptions() {
+  const ca = process.env.MARIADB_SSL_CA;
+  if (ca) return { ssl: { ca: fs.readFileSync(ca) } };
+  if (process.env.MARIADB_SSL === 'true') return { ssl: { rejectUnauthorized: false } };
+  return {};
+}
 function options(uri = process.env.MARIADB_URI) {
   if (!uri) throw new Error('MARIADB_URI를 server/.env에 설정해주세요.');
   const url = new URL(uri);
   if (url.protocol !== 'mariadb:' || !/^[A-Za-z0-9_]+$/.test(url.pathname.slice(1))) throw new Error('Invalid MariaDB URI');
   return { host: url.hostname, port: Number(url.port || 3306), user: decodeURIComponent(url.username),
     password: decodeURIComponent(url.password), database: url.pathname.slice(1), connectionLimit: 8,
-    timezone: 'Z', bigIntAsNumber: true, insertIdAsNumber: true };
+    timezone: 'Z', bigIntAsNumber: true, insertIdAsNumber: true, ...sslOptions() };
 }
 async function connect(uri) {
   pool = mariadb.createPool(options(uri));
