@@ -33,7 +33,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
-          role-to-assume: arn:aws:iam::458201209340:role/github-actions-deploy-role
+          role-to-assume: arn:aws:iam::458201209340:role/mk-prod-github-deploy-role
           aws-region: ap-northeast-2
 
       - name: Verify AWS identity
@@ -41,8 +41,8 @@ jobs:
 
       - name: Deploy shopping mall
         run: |
-          aws s3 sync client/dist/ s3://mk-shop-web-458201209340/
+          aws s3 sync client/dist/ s3://mk-prod-shop-static-1223/
 
       - name: Deploy admin
         run: |
-          aws s3 sync admin/dist/ s3://mk-admin-web-458201209340/
+          aws s3 sync admin/dist/ s3://mk-prod-admin-static-1223/
