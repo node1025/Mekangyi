@@ -5,20 +5,23 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { Transform, pipeline } = require('node:stream');
 const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { declaredFormat, normalizeImage, failure, MAX_FILE_BYTES, MAX_TOTAL_BYTES } = require('../services/imageValidation');
 
-const cloudinaryReady = () => Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
-if (cloudinaryReady()) {
-  cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET });
-}
+// Uploaded images are private S3 objects. Both CloudFront sites read /uploads/* through OAC.
+// Development mode defaults to local storage. Production must set IMAGE_STORAGE=s3 explicitly.
+const storageMode = () => process.env.IMAGE_STORAGE || (process.env.NODE_ENV === 'production' ? 'unconfigured' : 'local');
+const localImageUploads = () => storageMode() === 'local';
 const uploadsRoot = path.resolve(__dirname, '../../uploads');
 const dynamicDir = path.join(uploadsRoot, 'dynamic');
-const localImageUploads = () => process.env.LOCAL_IMAGE_UPLOADS === 'true'
-  || (process.env.NODE_ENV !== 'production' && !cloudinaryReady());
+const s3 = new S3Client({ region: process.env.AWS_REGION || 'ap-northeast-2' });
+const newKey = () => `uploads/dynamic/${randomUUID()}.webp`;
+const validS3Key = key => /^uploads\/dynamic\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$/i.test(key);
 
 function storedPathOk(url) {
-  return /^https:\/\//.test(url || '') || (localImageUploads() && /^uploads\//.test(url || ''));
+  if (storageMode() === 's3') return validS3Key(url || '');
+  // HTTPS allows tests to inject an external upload result; no production service uses it.
+  return /^https:\/\//.test(url || '') || (localImageUploads() && /^uploads\/dynamic\//.test(url || ''));
 }
 
 async function uploadToDisk(file) {
@@ -38,16 +41,37 @@ async function removeFromDisk(id) {
   await fsp.unlink(file).catch(() => {});
 }
 
+async function uploadToS3(file) {
+  const Bucket = process.env.S3_IMAGE_BUCKET;
+  if (!Bucket) throw new Error('S3_IMAGE_BUCKET가 설정되지 않았습니다.');
+  const Key = newKey();
+  await s3.send(new PutObjectCommand({
+    Bucket, Key,
+    Body: await fsp.readFile(file.path), // Already decoded/converted by normalizeImage()
+    ContentType: 'image/webp',
+    CacheControl: 'public,max-age=31536000,immutable'
+  }));
+  // Preserve the API contract: controller stores relative path in MariaDB.
+  return { public_id: Key, secure_url: Key };
+}
+
+async function removeFromS3(key) {
+  if (!validS3Key(key)) throw new Error('Invalid S3 object key');
+  const Bucket = process.env.S3_IMAGE_BUCKET;
+  if (!Bucket) throw new Error('S3_IMAGE_BUCKET가 설정되지 않았습니다.');
+  await s3.send(new DeleteObjectCommand({ Bucket, Key: key }));
+}
+
 function defaultSendImage(file) {
+  if (storageMode() === 's3') return uploadToS3(file);
   if (localImageUploads()) return uploadToDisk(file);
-  return cloudinary.uploader.upload(file.path, {
-    resource_type: 'image', folder: 'bukang-shop', public_id: randomUUID(), format: 'webp', overwrite: false, timeout: 15000
-  });
+  throw new Error('Production image storage requires IMAGE_STORAGE=s3');
 }
 
 function defaultRemoveImage(id) {
+  if (storageMode() === 's3') return removeFromS3(id);
   if (localImageUploads()) return removeFromDisk(id);
-  return cloudinary.uploader.destroy(id, { resource_type: 'image', timeout: 15000 });
+  throw new Error('Production image storage requires IMAGE_STORAGE=s3');
 }
 
 const temporary = Symbol('temporary');

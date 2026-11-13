@@ -155,9 +155,6 @@ test('concurrent image processing is bounded and the slot is released after comp
 test('authentication and admin authorization run before attachment processing', async t => {
   process.env.JWT_SECRET = 'upload-route-test-key';
   const jwt = require('jsonwebtoken');
-  const cloudinary = require('cloudinary').v2;
-  let outbound = 0;
-  t.mock.method(cloudinary.uploader, 'upload', async () => { outbound++; throw new Error('must not be called'); });
   const app = express();
   app.use('/board', require('../src/routes/board'));
   app.use('/products', require('../src/routes/product'));
@@ -172,5 +169,4 @@ test('authentication and admin authorization run before attachment processing', 
     });
     assert.equal(result.status, expected);
   }
-  assert.equal(outbound, 0);
 });
