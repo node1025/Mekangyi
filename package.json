@@ -1,0 +1,32 @@
+{
+  "name": "bukang-shop",
+  "version": "3.3.0",
+  "description": "부캉이 캐릭터 굿즈 쇼핑몰",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm --prefix server test",
+    "test:http-errors": "npm --prefix server run test:http-errors",
+    "build": "npm --prefix client run build && npm --prefix admin run build",
+    "build:local": "node scripts/build-local.cjs",
+    "start-all": "node scripts/start-local-stack.cjs",
+    "stop-local": "node scripts/stop-local-stack.cjs",
+    "seed:dev": "npm --prefix server run seed:dev",
+    "admin:dev": "npm --prefix server run admin:dev",
+    "admin:reset-password": "npm --prefix server run admin:reset-password",
+    "install": "npm --prefix server ci && npm --prefix client ci && npm --prefix admin ci",
+    "db:init": "npm --prefix server run db:init",
+    "test:mariadb": "npm --prefix server run test:mariadb",
+    "dev:shop": "npm --prefix client run dev",
+    "dev:admin": "npm --prefix admin run dev",
+    "options:update": "npm --prefix server run options:update",
+    "ratings:sync": "npm --prefix server run ratings:sync",
+    "admin:route-slug": "node scripts/generate-admin-route.cjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  }
+}

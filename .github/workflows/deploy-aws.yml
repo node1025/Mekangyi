@@ -1,0 +1,48 @@
+name: Deploy Mekangyi to AWS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: |
+          npm --prefix client ci
+          npm --prefix admin ci
+
+      - name: Build frontend
+        run: |
+          npm --prefix client run build
+          npm --prefix admin run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::458201209340:role/github-actions-deploy-role
+          aws-region: ap-northeast-2
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Deploy shopping mall
+        run: |
+          aws s3 sync client/dist/ s3://mk-shop-web-458201209340/
+
+      - name: Deploy admin
+        run: |
+          aws s3 sync admin/dist/ s3://mk-admin-web-458201209340/

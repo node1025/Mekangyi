@@ -1,0 +1,330 @@
+[
+  {
+    "product": {
+      "productCode": "bukangi_plush_doll",
+      "name": {
+        "ko": "부캉이 봉제 인형",
+        "en": "Bukangi Plush Doll"
+      },
+      "category": "인형·키링",
+      "basePrice": 24900,
+      "discountRate": 15,
+      "priceMode": "regular",
+      "finalPrice": 24900,
+      "material": "폴리에스터·PP면",
+      "origin": "대한민국",
+      "status": "판매중",
+      "description": "파란 상어 후드 속 동그란 미소, 부캉이를 폭신한 봉제 인형으로 만나보세요. 책상 위에도 침대 곁에도 두고 싶은 작은 친구입니다."
+    },
+    "variants": [
+      {
+        "variantCode": "bukangi_plush_doll-std",
+        "color": "블루",
+        "images": {
+          "thumbnail": "uploads/bukangi/bukangi_plush_doll_1.png",
+          "gallery": [
+            "uploads/bukangi/bukangi_plush_doll_1.png",
+            "uploads/bukangi/bukangi_plush_doll_2.png",
+            "uploads/bukangi/bukangi_plush_doll_3.png",
+            "uploads/bukangi/bukangi_plush_doll_4.png"
+          ]
+        }
+      },
+      {
+        "variantCode": "bukangi_plush_doll-pink",
+        "color": "핑크",
+        "images": {
+          "thumbnail": "uploads/bukangi/bukangi_plush_doll_2.png",
+          "gallery": [
+            "uploads/bukangi/bukangi_plush_doll_2.png",
+            "uploads/bukangi/bukangi_plush_doll_1.png",
+            "uploads/bukangi/bukangi_plush_doll_3.png",
+            "uploads/bukangi/bukangi_plush_doll_4.png"
+          ]
+        }
+      }
+    ],
+    "images": {
+      "thumbnail": "uploads/bukangi/bukangi_plush_doll_1.png",
+      "gallery": [
+        "uploads/bukangi/bukangi_plush_doll_1.png",
+        "uploads/bukangi/bukangi_plush_doll_2.png",
+        "uploads/bukangi/bukangi_plush_doll_3.png",
+        "uploads/bukangi/bukangi_plush_doll_4.png"
+      ]
+    },
+    "sizes": [
+      "프리"
+    ],
+    "stockQuantity": 100
+  },
+  {
+    "product": {
+      "productCode": "bukangi_doll_keyring",
+      "name": {
+        "ko": "부캉이 인형 키링",
+        "en": "Bukangi Doll Keyring"
+      },
+      "category": "인형·키링",
+      "basePrice": 12900,
+      "discountRate": 10,
+      "priceMode": "regular",
+      "finalPrice": 12900,
+      "material": "PVC·합금",
+      "origin": "대한민국",
+      "status": "판매중",
+      "description": "가방에도 열쇠에도, 어디든 부캉이와 함께. 작은 봉제 인형과 귀여운 참이 달린 부캉이 키링입니다."
+    },
+    "variants": [
+      {
+        "variantCode": "bukangi_doll_keyring-std",
+        "color": "블루",
+        "images": {
+          "thumbnail": "uploads/bukangi/bukangi_doll_keyring_1.png",
+          "gallery": [
+            "uploads/bukangi/bukangi_doll_keyring_1.png",
+            "uploads/bukangi/bukangi_doll_keyring_2.png",
+            "uploads/bukangi/bukangi_doll_keyring_3.png",
+            "uploads/bukangi/bukangi_doll_keyring_4.png"
+          ]
+        }
+      },
+      {
+        "variantCode": "bukangi_doll_keyring-pink",
+        "color": "핑크",
+        "images": {
+          "thumbnail": "uploads/bukangi/bukangi_doll_keyring_2.png",
+          "gallery": [
+            "uploads/bukangi/bukangi_doll_keyring_2.png",
+            "uploads/bukangi/bukangi_doll_keyring_1.png",
+            "uploads/bukangi/bukangi_doll_keyring_3.png",
+            "uploads/bukangi/bukangi_doll_keyring_4.png"
+          ]
+        }
+      }
+    ],
+    "images": {
+      "thumbnail": "uploads/bukangi/bukangi_doll_keyring_1.png",
+      "gallery": [
+        "uploads/bukangi/bukangi_doll_keyring_1.png",
+        "uploads/bukangi/bukangi_doll_keyring_2.png",
+        "uploads/bukangi/bukangi_doll_keyring_3.png",
+        "uploads/bukangi/bukangi_doll_keyring_4.png"
+      ]
+    },
+    "sizes": [
+      "프리"
+    ],
+    "stockQuantity": 100
+  },
+  {
+    "product": {
+      "productCode": "bukangi_mood_light",
+      "name": {
+        "ko": "부캉이 무드등",
+        "en": "Bukangi Mood Light"
+      },
+      "category": "리빙",
+      "basePrice": 22000,
+      "discountRate": 20,
+      "priceMode": "regular",
+      "finalPrice": 22000,
+      "material": "ABS·실리콘",
+      "origin": "대한민국",
+      "status": "판매중",
+      "description": "하루의 끝을 부드러운 빛으로 채워줄 상어 모양 무드등입니다. 익숙한 공간에 작은 바다의 분위기를 더해보세요."
+    },
+    "variants": [
+      {
+        "variantCode": "bukangi_mood_light-std",
+        "color": "오리지널"
+      }
+    ],
+    "images": {
+      "thumbnail": "uploads/bukangi/bukangi_mood_light_1.png",
+      "gallery": [
+        "uploads/bukangi/bukangi_mood_light_1.png",
+        "uploads/bukangi/bukangi_mood_light_2.jpg",
+        "uploads/bukangi/bukangi_mood_light_3.png",
+        "uploads/bukangi/bukangi_mood_light_4.png"
+      ]
+    },
+    "sizes": [
+      "프리"
+    ],
+    "stockQuantity": 100
+  },
+  {
+    "product": {
+      "productCode": "bukangi_bowl",
+      "name": {
+        "ko": "부캉이 머그볼",
+        "en": "Bukangi Mug Bowl"
+      },
+      "category": "리빙",
+      "basePrice": 14000,
+      "discountRate": 15,
+      "priceMode": "regular",
+      "finalPrice": 14000,
+      "material": "도자기",
+      "origin": "대한민국",
+      "status": "판매중",
+      "description": "동그란 눈과 상어 꼬리 손잡이가 귀여운 부캉이 머그볼입니다. 좋아하는 간식과 함께 기분 좋은 시간을 만들어보세요."
+    },
+    "variants": [
+      {
+        "variantCode": "bukangi_bowl-std",
+        "color": "오리지널"
+      }
+    ],
+    "images": {
+      "thumbnail": "uploads/bukangi/bukangi_bowl_1.png",
+      "gallery": [
+        "uploads/bukangi/bukangi_bowl_1.png",
+        "uploads/bukangi/bukangi_bowl_2.png",
+        "uploads/bukangi/bukangi_bowl_3.png",
+        "uploads/bukangi/bukangi_bowl_4.png"
+      ]
+    },
+    "sizes": [
+      "프리"
+    ],
+    "stockQuantity": 100
+  },
+  {
+    "product": {
+      "productCode": "bukangi_tshirt",
+      "name": {
+        "ko": "부캉이 티셔츠",
+        "en": "Bukangi T-shirt"
+      },
+      "category": "의류",
+      "basePrice": 42000,
+      "discountRate": 25,
+      "priceMode": "regular",
+      "finalPrice": 42000,
+      "material": "면 100%",
+      "origin": "대한민국",
+      "status": "판매중",
+      "description": "좋아하는 마음을 입는 가장 가벼운 방법. 부캉이 아트워크가 담긴 그래픽 티셔츠입니다. 사이즈 옵션을 선택해주세요."
+    },
+    "variants": [
+      {
+        "variantCode": "bukangi_tshirt-std",
+        "color": "화이트",
+        "images": {
+          "thumbnail": "uploads/bukangi/bukangi_tshirt_1.png",
+          "gallery": [
+            "uploads/bukangi/bukangi_tshirt_1.png",
+            "uploads/bukangi/bukangi_tshirt_2.png",
+            "uploads/bukangi/bukangi_tshirt_3.png",
+            "uploads/bukangi/bukangi_tshirt_4.png"
+          ]
+        }
+      },
+      {
+        "variantCode": "bukangi_tshirt-black",
+        "color": "블랙",
+        "images": {
+          "thumbnail": "uploads/bukangi/bukangi_tshirt_2.png",
+          "gallery": [
+            "uploads/bukangi/bukangi_tshirt_2.png",
+            "uploads/bukangi/bukangi_tshirt_1.png",
+            "uploads/bukangi/bukangi_tshirt_3.png",
+            "uploads/bukangi/bukangi_tshirt_4.png"
+          ]
+        }
+      }
+    ],
+    "images": {
+      "thumbnail": "uploads/bukangi/bukangi_tshirt_1.png",
+      "gallery": [
+        "uploads/bukangi/bukangi_tshirt_1.png",
+        "uploads/bukangi/bukangi_tshirt_2.png",
+        "uploads/bukangi/bukangi_tshirt_3.png",
+        "uploads/bukangi/bukangi_tshirt_4.png"
+      ]
+    },
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stockQuantity": 100
+  },
+  {
+    "product": {
+      "productCode": "bukangi_mousepad",
+      "name": {
+        "ko": "부캉이 마우스패드",
+        "en": "Bukangi Mouse Pad"
+      },
+      "category": "문구·데스크",
+      "basePrice": 16000,
+      "discountRate": 20,
+      "priceMode": "regular",
+      "finalPrice": 16000,
+      "material": "천 상단·고무 바닥",
+      "origin": "대한민국",
+      "status": "판매중",
+      "description": "손이 닿는 곳마다 작은 바다 한 조각. 부캉이 일러스트가 담긴 마우스패드로 나만의 책상을 꾸며보세요."
+    },
+    "variants": [
+      {
+        "variantCode": "bukangi_mousepad-std",
+        "color": "오리지널"
+      }
+    ],
+    "images": {
+      "thumbnail": "uploads/bukangi/bukangi_mousepad_1.png",
+      "gallery": [
+        "uploads/bukangi/bukangi_mousepad_1.png",
+        "uploads/bukangi/bukangi_mousepad_2.png",
+        "uploads/bukangi/bukangi_mousepad_3.png",
+        "uploads/bukangi/bukangi_mousepad_4.png"
+      ]
+    },
+    "sizes": [
+      "프리"
+    ],
+    "stockQuantity": 100
+  },
+  {
+    "product": {
+      "productCode": "bukangi_notebook",
+      "name": {
+        "ko": "부캉이 노트",
+        "en": "Bukangi Notebook"
+      },
+      "category": "문구·데스크",
+      "basePrice": 3000,
+      "discountRate": 10,
+      "priceMode": "regular",
+      "finalPrice": 3000,
+      "material": "종이·스테이플 제본",
+      "origin": "대한민국",
+      "status": "판매중",
+      "description": "오늘의 생각도 작은 낙서도 부캉이와 함께 남겨요. 바다를 담은 표지가 기분 좋은 부캉이 노트입니다."
+    },
+    "variants": [
+      {
+        "variantCode": "bukangi_notebook-std",
+        "color": "오리지널"
+      }
+    ],
+    "images": {
+      "thumbnail": "uploads/bukangi/bukangi_notebook_1.png",
+      "gallery": [
+        "uploads/bukangi/bukangi_notebook_1.png",
+        "uploads/bukangi/bukangi_notebook_2.png",
+        "uploads/bukangi/bukangi_notebook_3.png",
+        "uploads/bukangi/bukangi_notebook_4.png"
+      ]
+    },
+    "sizes": [
+      "프리"
+    ],
+    "stockQuantity": 100
+  }
+]
