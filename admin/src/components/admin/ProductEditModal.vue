@@ -375,11 +375,11 @@ const handleSave = () => {
                 <div class="gallery-editor">
                   <div v-for="(path, galleryIndex) in variant.images.gallery" :key="path" class="gallery-item">
                     <img :src="imageUrl(path)" alt="" />
-                    <button type="button" @click="removeKeptGallery(variant, galleryIndex)">삭제</button>
+                    <button type="button" @click="removeKeptGallery(variant, Number(galleryIndex))">삭제</button>
                   </div>
                   <div v-for="(preview, galleryIndex) in variant.galleryPreviews" :key="preview" class="gallery-item">
                     <img :src="preview" alt="" />
-                    <button type="button" @click="removeNewGallery(variant, galleryIndex)">삭제</button>
+                    <button type="button" @click="removeNewGallery(variant, Number(galleryIndex))">삭제</button>
                   </div>
                   <label class="file-btn gallery-add">
                     갤러리 추가
