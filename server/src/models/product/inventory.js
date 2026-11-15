@@ -24,6 +24,11 @@ const inventorySchema = new Schema({
     default: 0,
     min: [0, '재고는 0개 미만이 될 수 없습니다.'],
     validate: { validator: Number.isSafeInteger, message: '재고는 0 이상의 정수여야 합니다.' }
+  },
+
+  isDeleted: {      // 논리적 삭제. 주문 취소 시 재고 복구를 위해 행은 남긴다.
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 

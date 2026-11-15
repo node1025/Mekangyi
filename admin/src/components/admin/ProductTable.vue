@@ -119,21 +119,23 @@ const onUpdateProduct = async (payload: any) => {
       return;
     }
 
-    // 서버 전송용 데이터 구조
-    const requestPayload = {
+    const formData = new FormData();
+    formData.append('data', JSON.stringify({
       productData: payload.productData,
       variants: payload.variants
-    };
+    }));
+    (payload.files || []).forEach((fileSet: { thumb?: File | null; gallery?: File[] }, index: number) => {
+      if (fileSet?.thumb) formData.append(`variant_${index}_thumb`, fileSet.thumb);
+      for (const file of fileSet?.gallery || []) formData.append(`variant_${index}_gallery`, file);
+    });
 
-    // API 호출
     const response = await axios.patch(
       `/api/products/${productId}`,
-      requestPayload, 
-      { 
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        } 
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       }
     );
 

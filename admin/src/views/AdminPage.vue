@@ -122,12 +122,14 @@ const selectMenu = (id: string) => {
 </script>
 
 <template>
-  <div class="admin-session-bar"><span>관리자 보호 세션 · {{ Math.floor(secondsLeft / 60) }}:{{ String(secondsLeft % 60).padStart(2, '0') }}</span><button @click="lockAdmin">관리자 세션 잠금</button></div>
-  <div class="admin-layout">
-    <button class="mobile-toggle" @click="toggleSidebar">
+  <div class="admin-session-bar">
+    <button type="button" class="mobile-toggle" @click="toggleSidebar">
       {{ isSidebarOpen ? '✕' : '☰' }}
     </button>
-    
+    <span>관리자 보호 세션 · {{ Math.floor(secondsLeft / 60) }}:{{ String(secondsLeft % 60).padStart(2, '0') }}</span>
+    <button type="button" @click="lockAdmin">관리자 세션 잠금</button>
+  </div>
+  <div class="admin-layout">
     <aside class="sidebar" :class="{ 'is-open': isSidebarOpen }">
       <nav class="nav-menu">
         <div v-for="group in menuItems" :key="group.label" class="menu-group">
@@ -186,7 +188,7 @@ const selectMenu = (id: string) => {
 </template>
 
 <style scoped>
-.admin-session-bar{display:flex;justify-content:flex-end;align-items:center;gap:18px;padding:12px 24px;background:#edf0e8;color:#42583d;font-size:15px}.admin-session-bar button{background:#294733;color:white;border:0;padding:8px 12px;font-size:15px}
+.admin-session-bar{position:relative;z-index:1002;display:flex;justify-content:flex-end;align-items:center;gap:18px;padding:12px 24px;background:#edf0e8;color:#42583d;font-size:15px}.admin-session-bar button{background:#294733;color:white;border:0;padding:8px 12px;font-size:15px}.admin-session-bar .mobile-toggle{background:#6a8fe7}
 /* 전체 레이아웃 스타일 */
 .admin-layout {
   display: flex;
@@ -305,23 +307,22 @@ const selectMenu = (id: string) => {
 
 .mobile-toggle {
   display: none;
-  position: fixed;
-  top: 15px;
-  left: 15px;
-  z-index: 1001;
+  margin-right: auto;
   background: #6a8fe7;
   color: white;
   border: none;
   border-radius: 4px;
   padding: 8px 12px;
   font-size: 20px;
+  line-height: 1;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
 @media (max-width: 1024px) {
   .mobile-toggle {
-    display: block; /* 버튼 표시 */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .sidebar {
@@ -346,7 +347,7 @@ const selectMenu = (id: string) => {
   }
 
   .main-content {
-    padding: 70px 20px 20px; /* 상단 버튼 공간 확보 */
+    padding: 24px 20px 20px;
     max-width: 100%;
   }
 

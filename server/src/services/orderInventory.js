@@ -55,8 +55,8 @@ async function quoteItems(input, session) {
   let subtotal = 0;
   for (const item of items) {
     const product = await Product.findOne({ _id: item.productId, isDeleted: false, status: '판매중' }).session(session);
-    const variant = await Variant.findOne({ _id: item.variantId, productId: item.productId }).session(session);
-    const inventory = await Inventory.findOne({ variantId: item.variantId, size: item.size }).session(session);
+    const variant = await Variant.findOne({ _id: item.variantId, productId: item.productId, isDeleted: false }).session(session);
+    const inventory = await Inventory.findOne({ variantId: item.variantId, size: item.size, isDeleted: false }).session(session);
     if (!product || !variant || !inventory) throw fail('판매 가능한 상품 옵션이 아닙니다.', 409);
     if (!Number.isSafeInteger(inventory.stockQuantity) || inventory.stockQuantity < item.quantity) throw fail('상품 재고가 부족합니다.', 409);
     const unit = salePriceFromProduct(product);
@@ -77,8 +77,9 @@ async function applyStock(items, session, restore = false) {
     const filter = { variantId: item.variantId, size: item.size,
       stockQuantity: { $gte: restore ? 0 : item.quantity, $lte: Number.MAX_SAFE_INTEGER - (restore ? item.quantity : 0) } };
     if (!restore) {
+      filter.isDeleted = false;
       const product = await Product.findOne({ _id: item.productId, isDeleted: false, status: '판매중' }).session(session);
-      const variant = await Variant.findOne({ _id: item.variantId, productId: item.productId }).session(session);
+      const variant = await Variant.findOne({ _id: item.variantId, productId: item.productId, isDeleted: false }).session(session);
       if (!product || !variant) throw fail('판매 가능한 상품 옵션이 아닙니다.', 409);
     }
     const updated = await Inventory.updateOne(filter, { $inc: { stockQuantity: restore ? item.quantity : -item.quantity } }, { session, runValidators: true });

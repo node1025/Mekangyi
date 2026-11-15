@@ -6,6 +6,9 @@ const { literalSearch } = require('../utils/input');
 const { enrichProductForResponse } = require('../utils/productPricing');
 const { sortVariants } = require('../utils/variantOrder');
 
+const PRODUCT_CATEGORIES = ['인형·키링', '리빙', '문구·데스크', '의류'];
+const STANDARD_SIZES = ['프리', 'S', 'M', 'L', 'XL'];
+
 function parseOptionalEventDate(value) {
   if (value === undefined) return undefined;
   if (value === null || value === '') return null;
@@ -194,10 +197,10 @@ exports.getAllProducts = async (req, res) => {
 
         const fullProducts = products.map(p => {
             const variants = sortVariants(p.productCode, allVariants
-                .filter(v => v.productId.toString() === p._id.toString())
+                .filter(v => v.productId.toString() === p._id.toString() && !v.isDeleted)
                 .map(v => ({
                     ...v,
-                    inventories: allInventories.filter(i => i.variantId.toString() === v._id.toString())
+                    inventories: allInventories.filter(i => i.variantId.toString() === v._id.toString() && !i.isDeleted)
                 })));
 
             const thumbnail = variants.length > 0 ? variants[0].images.thumbnail : "";
@@ -234,8 +237,8 @@ exports.getProductDetail = async (req, res) => {
         }
 
         // Variants 조회
-        const variants = await ProductVariant.find({ productId: product._id }).lean();
-        const inventories = await Inventory.find({ variantId: { $in: variants.map(v => v._id) } }).lean();
+        const variants = await ProductVariant.find({ productId: product._id, isDeleted: false }).lean();
+        const inventories = await Inventory.find({ variantId: { $in: variants.map(v => v._id) }, isDeleted: false }).lean();
         const variantsWithInventory = sortVariants(product.productCode, variants.map(v => ({ ...v, inventory: inventories.filter(i => String(i.variantId) === String(v._id)) })));
 
         res.status(200).json({
@@ -276,61 +279,197 @@ exports.updateProduct = async (req, res) => {
         const product = await Product.findById(id).session(session);
         if (!product) throw new Error("상품을 찾을 수 없습니다.");
 
+        const allowedCategories = new Set(PRODUCT_CATEGORIES);
+        if (product.category) allowedCategories.add(product.category);
+        if (productData.category != null && !allowedCategories.has(productData.category)) {
+            throw Object.assign(new Error('카테고리는 인형·키링, 리빙, 문구·데스크, 의류 중에서 선택해주세요.'), { status: 400 });
+        }
+
         applyProductPayloadToDoc(product, productData);
-        await product.save({ session }); 
+        await product.save({ session });
 
-        // Variants 및 Inventory 업데이트
-        if (variants && Array.isArray(variants)) {
-            for (let i = 0; i < variants.length; i++) {
-                const v = variants[i];
-                if (!v._id) continue;
+        const submitted = Array.isArray(variants) ? variants : [];
+        const seenVariantIds = new Set();
 
+        const markVariantDeleted = async (existingVariant) => {
+            existingVariant.isDeleted = true;
+            await existingVariant.save({ session });
+            const rows = await Inventory.find({ variantId: existingVariant._id }).session(session);
+            for (const row of rows) {
+                if (row.isDeleted) continue;
+                row.isDeleted = true;
+                await row.save({ session });
+            }
+        };
+
+        for (let i = 0; i < submitted.length; i++) {
+            const v = submitted[i];
+            if (v._id) {
                 const existingVariant = await ProductVariant.findOne({ _id: v._id, productId: product._id }).session(session);
-                if (existingVariant) {
+                if (!existingVariant) throw Object.assign(new Error('상품 옵션을 찾을 수 없습니다.'), { status: 404 });
+                seenVariantIds.add(String(existingVariant._id));
+                if (v.isDeleted) {
+                    await markVariantDeleted(existingVariant);
+                    continue;
+                }
+                await applyVariantEdit(existingVariant, v, i);
+            } else if (!v.isDeleted) {
+                await createOrReviveVariant(v, i);
+            }
+        }
 
-                    // 이미지 업데이트 처리
-                    if (req.files && req.files.length > 0) {
-                        const newThumb = (req.files || []).find(f => f.fieldname === `variant_${i}_thumb`);
-                        const newGallery = (req.files || []).filter(f => f.fieldname === `variant_${i}_gallery`).map(f => f.path);
+        const activeVariants = await ProductVariant.find({ productId: product._id, isDeleted: false }).session(session);
+        for (const row of activeVariants) {
+            if (!seenVariantIds.has(String(row._id))) await markVariantDeleted(row);
+        }
+        if ((await ProductVariant.find({ productId: product._id, isDeleted: false }).session(session)).length === 0) {
+            throw Object.assign(new Error('색상 옵션은 하나 이상 남겨주세요.'), { status: 400 });
+        }
 
-                        if (newThumb) {
-                            existingVariant.images.thumbnail = newThumb.path;
-                        }
-                        
-                        if (newGallery.length > 0) {
-                            existingVariant.images.gallery = newGallery;
-                        }
+        async function applyVariantEdit(existingVariant, v, index) {
+            const color = String(v.color ?? '').trim() || existingVariant.color;
+            if (!color) throw Object.assign(new Error('색상명을 입력해주세요.'), { status: 400 });
+            const files = req.files || [];
+            const newThumb = files.find(f => f.fieldname === `variant_${index}_thumb`);
+            const addedGallery = files.filter(f => f.fieldname === `variant_${index}_gallery`).map(f => f.path);
+
+            const previousGallery = Array.isArray(existingVariant.images?.gallery) ? existingVariant.images.gallery : [];
+            let gallery = previousGallery;
+            if (Array.isArray(v.keepGallery)) {
+                const allowed = new Set(previousGallery);
+                gallery = v.keepGallery.filter(path => typeof path === 'string' && allowed.has(path));
+            }
+            gallery = [...gallery, ...addedGallery];
+            if (gallery.length > 8) throw Object.assign(new Error('갤러리는 8장까지 등록할 수 있습니다.'), { status: 400 });
+
+            if (!existingVariant.images) existingVariant.images = { thumbnail: '', gallery: [] };
+            if (newThumb) existingVariant.images.thumbnail = newThumb.path;
+            if (!existingVariant.images.thumbnail) throw Object.assign(new Error('대표 이미지가 필요합니다.'), { status: 400 });
+            if (Array.isArray(v.keepGallery) || addedGallery.length) existingVariant.images.gallery = gallery;
+
+            if (v.variantCode || v.color) {
+                const nextCode = normalizeVariantCode(product.productCode, {
+                    variantCode: v.variantCode || existingVariant.variantCode,
+                    color
+                });
+                if (nextCode !== existingVariant.variantCode) {
+                    const clash = await ProductVariant.findOne({ variantCode: nextCode }).session(session);
+                    if (clash && String(clash._id) !== String(existingVariant._id)) {
+                        throw Object.assign(new Error(`옵션 코드 "${nextCode}"는 이미 사용 중입니다.`), { status: 409 });
                     }
+                    existingVariant.variantCode = nextCode;
+                }
+            }
+            existingVariant.color = color;
+            existingVariant.isDeleted = false;
+            await existingVariant.save({ session });
+            await syncInventories(existingVariant, v.inventories);
+        }
 
-                    // 일반 정보 업데이트
-                    existingVariant.color = v.color || existingVariant.color;
-                    existingVariant.variantCode = v.variantCode || existingVariant.variantCode;
-                    await existingVariant.save({ session });
+        async function createOrReviveVariant(v, index) {
+            const color = String(v.color || '').trim();
+            const vCode = normalizeVariantCode(product.productCode, { variantCode: v.variantCode, color });
+            const files = req.files || [];
+            const newThumb = files.find(f => f.fieldname === `variant_${index}_thumb`);
+            const addedGallery = files.filter(f => f.fieldname === `variant_${index}_gallery`).map(f => f.path);
+            if (!newThumb) throw Object.assign(new Error('추가한 색상에는 대표 이미지가 필요합니다.'), { status: 400 });
+            if (addedGallery.length > 8) throw Object.assign(new Error('갤러리는 8장까지 등록할 수 있습니다.'), { status: 400 });
 
-                    // Inventory (사이즈별 재고) 업데이트
-                    if (v.inventories && Array.isArray(v.inventories)) {
-                        for (const inv of v.inventories) {
-                            if (!Number.isSafeInteger(Number(inv.stockQuantity)) || Number(inv.stockQuantity) < 0) {
-                                throw Object.assign(new Error('재고는 0 이상의 정수여야 합니다.'), { status: 400 });
-                            }
-                            if (typeof inv.expectedUpdatedAt !== 'string' || !Number.isFinite(Date.parse(inv.expectedUpdatedAt))) {
-                                throw Object.assign(new Error('최신 상품 정보를 다시 불러온 뒤 저장해주세요.'), { status: 409 });
-                            }
-                            const newSku = `${existingVariant.variantCode}-${inv.size}`.toUpperCase().replace(/\s/g, '');
-                            
-                            const updatedInventory = await Inventory.findOneAndUpdate(
-                                { _id: inv._id, variantId: existingVariant._id, updatedAt: new Date(inv.expectedUpdatedAt) },
-                                { 
-                                    stockQuantity: Number(inv.stockQuantity),
-                                    sku: newSku,
-                                    size: inv.size
-                                },
-                                { session, runValidators: true }
-                            );
-                            if (!updatedInventory) throw Object.assign(new Error('재고가 변경되었습니다. 상품을 다시 불러온 뒤 수정해주세요.'), { status: 409 });
-                        }
+            let existingVariant = await ProductVariant.findOne({ variantCode: vCode, productId: product._id }).session(session);
+            if (existingVariant && !existingVariant.isDeleted) {
+                throw Object.assign(new Error(`옵션 코드 "${vCode}"는 이미 사용 중입니다.`), { status: 409 });
+            }
+            const foreign = await ProductVariant.findOne({ variantCode: vCode }).session(session);
+            if (foreign && String(foreign.productId) !== String(product._id)) {
+                throw Object.assign(new Error(`옵션 코드 "${vCode}"는 이미 다른 상품에서 사용 중입니다.`), { status: 409 });
+            }
+            if (!existingVariant) {
+                existingVariant = new ProductVariant({
+                    productId: product._id,
+                    variantCode: vCode,
+                    color,
+                    images: { thumbnail: newThumb.path, gallery: addedGallery }
+                });
+            } else {
+                existingVariant.isDeleted = false;
+                existingVariant.color = color;
+                existingVariant.images.thumbnail = newThumb.path;
+                existingVariant.images.gallery = addedGallery;
+            }
+            await existingVariant.save({ session });
+            seenVariantIds.add(String(existingVariant._id));
+            await syncInventories(existingVariant, v.inventories);
+        }
+
+        async function syncInventories(existingVariant, inventories) {
+            const rows = Array.isArray(inventories) ? inventories : [];
+            const knownSizes = new Set((await Inventory.find({ variantId: existingVariant._id }).session(session)).map(row => row.size));
+            const touched = new Set();
+            const activeSizes = rows.filter(inv => !inv.isDeleted);
+            if (activeSizes.length === 0) throw Object.assign(new Error('사이즈는 하나 이상 남겨주세요.'), { status: 400 });
+
+            for (const inv of rows) {
+                const size = String(inv.size || '').trim();
+                if (!STANDARD_SIZES.includes(size) && !knownSizes.has(size)) {
+                    throw Object.assign(new Error('사이즈는 프리, S, M, L, XL 또는 기존 사이즈만 사용할 수 있습니다.'), { status: 400 });
+                }
+                if (inv.isDeleted) {
+                    if (!inv._id) continue;
+                    if (typeof inv.expectedUpdatedAt !== 'string' || !Number.isFinite(Date.parse(inv.expectedUpdatedAt))) {
+                        throw Object.assign(new Error('최신 상품 정보를 다시 불러온 뒤 저장해주세요.'), { status: 409 });
+                    }
+                    const updated = await Inventory.findOneAndUpdate(
+                        { _id: inv._id, variantId: existingVariant._id, updatedAt: new Date(inv.expectedUpdatedAt) },
+                        { isDeleted: true },
+                        { session }
+                    );
+                    if (!updated) throw Object.assign(new Error('재고가 변경되었습니다. 상품을 다시 불러온 뒤 수정해주세요.'), { status: 409 });
+                    touched.add(String(inv._id));
+                    continue;
+                }
+                if (!Number.isSafeInteger(Number(inv.stockQuantity)) || Number(inv.stockQuantity) < 0) {
+                    throw Object.assign(new Error('재고는 0 이상의 정수여야 합니다.'), { status: 400 });
+                }
+                const newSku = `${existingVariant.variantCode}-${size}`.toUpperCase().replace(/\s/g, '');
+                if (inv._id) {
+                    if (typeof inv.expectedUpdatedAt !== 'string' || !Number.isFinite(Date.parse(inv.expectedUpdatedAt))) {
+                        throw Object.assign(new Error('최신 상품 정보를 다시 불러온 뒤 저장해주세요.'), { status: 409 });
+                    }
+                    const updatedInventory = await Inventory.findOneAndUpdate(
+                        { _id: inv._id, variantId: existingVariant._id, updatedAt: new Date(inv.expectedUpdatedAt) },
+                        { stockQuantity: Number(inv.stockQuantity), sku: newSku, size, isDeleted: false },
+                        { session, runValidators: true }
+                    );
+                    if (!updatedInventory) throw Object.assign(new Error('재고가 변경되었습니다. 상품을 다시 불러온 뒤 수정해주세요.'), { status: 409 });
+                    touched.add(String(inv._id));
+                } else {
+                    const prior = await Inventory.findOne({ variantId: existingVariant._id, size }).session(session);
+                    if (prior) {
+                        prior.isDeleted = false;
+                        prior.stockQuantity = Number(inv.stockQuantity);
+                        prior.sku = newSku;
+                        prior.size = size;
+                        await prior.save({ session });
+                        touched.add(String(prior._id));
+                    } else {
+                        const created = await Inventory.create({
+                            variantId: existingVariant._id,
+                            sku: newSku,
+                            size,
+                            stockQuantity: Number(inv.stockQuantity),
+                            isDeleted: false
+                        }, { session });
+                        touched.add(String(created._id));
+                        knownSizes.add(size);
                     }
                 }
+            }
+
+            const remaining = await Inventory.find({ variantId: existingVariant._id, isDeleted: false }).session(session);
+            for (const row of remaining) {
+                if (touched.has(String(row._id))) continue;
+                row.isDeleted = true;
+                await row.save({ session });
             }
         }
 

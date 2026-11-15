@@ -322,9 +322,10 @@ const getImageUrl = (path: string) => {
 <style scoped>
 /* 공통 스타일: 장바구니 페이지와 통일감 부여 */
 .order-page {
-  max-width: 1200px;
+  width: min(1200px, 100%);
   margin: 60px auto;
   padding: 0 20px;
+  box-sizing: border-box;
   font-family:var(--font-body);
   color: #333;
 }
@@ -346,13 +347,20 @@ h3 {
 }
 
 .order-container {
-  display: flex;
-  gap: 50px;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 40px;
+  align-items: start;
+  width: 100%;
 }
 
-.order-left { flex: 1; }
-.order-right { width: 380px; position: sticky; top: 100px; }
+.order-left,
+.order-right {
+  min-width: 0;
+  width: 100%;
+}
+
+.order-right { position: sticky; top: 100px; }
 
 /* 입력 폼 스타일 */
 .input-form {
@@ -375,6 +383,8 @@ h3 {
 }
 
 .input-row input {
+  width: 100%;
+  box-sizing: border-box;
   padding: 12px 15px;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -391,16 +401,25 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  width: 100%;
 }
+
+.address-grid input { width: 100%; }
 
 .zip-code-row {
   display: flex;
   gap: 10px;
+  width: 100%;
 }
 
-.zip-code-row input { width: 120px; }
+.zip-code-row input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
 
 .sub-btn {
+  flex-shrink: 0;
   padding: 0 20px;
   background: #eff6ff;
   color: #2563eb;
@@ -514,9 +533,9 @@ h3 {
 }
 /* 반응형 모바일 */
 @media (max-width: 1024px) {
-  .order-container { flex-direction: column; }
-  .order-right { width: 100%; position: static; }
-  .summary-sticky { margin-top: 20px; }
+  .order-container { grid-template-columns: minmax(0, 1fr); }
+  .order-right { position: static; width: 100%; }
+  .summary-sticky { width: 100%; margin-top: 20px; }
 }
 .field-error {
   margin: 6px 0 0;

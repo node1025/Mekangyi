@@ -30,8 +30,8 @@ exports.addToCart = async (req, res) => {
 
   try {
     const product = await Product.findOne({ _id: productId, isDeleted: false, status: '판매중' });
-    const variant = await ProductVariant.findOne({ _id: variantId, productId });
-    const inventory = await Inventory.findOne({ variantId, size });
+    const variant = await ProductVariant.findOne({ _id: variantId, productId, isDeleted: false });
+    const inventory = await Inventory.findOne({ variantId, size, isDeleted: false });
     if (!product || !variant || !inventory) {
       return res.status(400).json({ message: '구매 가능한 상품 옵션이 아닙니다.' });
     }
@@ -124,7 +124,7 @@ exports.updateQuantity = async (req, res) => {
     const index = cart.items.findIndex((entry) => String(entry._id) === String(itemId));
     if (index < 0) return res.status(404).json({ message: '장바구니 항목을 찾을 수 없습니다.' });
     const item = cart.items[index];
-    const inventory = await Inventory.findOne({ variantId: item.variantId, size: item.size });
+    const inventory = await Inventory.findOne({ variantId: item.variantId, size: item.size, isDeleted: false });
     if (!inventory || quantity > inventory.stockQuantity) {
       return res.status(400).json({ message: '재고 수량을 초과했습니다.' });
     }

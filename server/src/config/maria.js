@@ -24,6 +24,9 @@ async function connect(uri) {
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS shippingAddress JSON NULL');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS adminReauthPassword VARCHAR(255) NULL');
   }
+  if (registry.has('Inventory')) {
+    await pool.query('ALTER TABLE inventories ADD COLUMN IF NOT EXISTS isDeleted BOOLEAN NOT NULL DEFAULT FALSE');
+  }
   // Expired reset tokens are already rejected by the controller; prune them on startup too.
   if (registry.has('PasswordReset')) await pool.query('DELETE FROM passwordresets WHERE expiresAt <= UTC_TIMESTAMP(3)');
   if (registry.has('AdminSession')) await pool.query('DELETE FROM adminsessions WHERE expiresAt <= UTC_TIMESTAMP(3)');

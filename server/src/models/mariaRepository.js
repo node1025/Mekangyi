@@ -233,6 +233,12 @@ module.exports = function repository(Model) {
       if (Object.keys(keys).every(key => fields.has(key))) columns.push(`${opts.unique ? 'UNIQUE ' : ''}KEY ${q(`idx_${i}`)} (${Object.keys(keys).map(q).join(',')})`);
     }
     await db.database().query(`CREATE TABLE IF NOT EXISTS ${q(table)} (${columns.join(',')}) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`);
+    const presentColumns = new Set((await db.database().query(`SHOW COLUMNS FROM ${q(table)}`)).map(row => row.Field));
+    for (const [name, type] of fields) {
+      if (presentColumns.has(name)) continue;
+      const suffix = type === 'BOOLEAN' ? ' NOT NULL DEFAULT FALSE' : ' NULL';
+      await db.database().query(`ALTER TABLE ${q(table)} ADD COLUMN ${q(name)} ${type}${suffix}`);
+    }
     const present = new Set((await db.database().query(`SHOW INDEX FROM ${q(table)}`)).map(row => row.Key_name));
     for (const [i, [keys, opts]] of indexes.entries()) {
       if (!present.has(`idx_${i}`) && Object.keys(keys).every(key => fields.has(key))) await db.database().query(`ALTER TABLE ${q(table)} ADD ${opts.unique ? 'UNIQUE ' : ''}INDEX ${q(`idx_${i}`)} (${Object.keys(keys).map(q).join(',')})`);

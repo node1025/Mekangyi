@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import { salePricePreview, effectiveDiscountPreview, toDatetimeLocalValue, fromDatetimeLocalValue, type CatalogProduct } from '../../utils/catalog';
+import { salePricePreview, effectiveDiscountPreview, toDatetimeLocalValue, fromDatetimeLocalValue, imageUrl, type CatalogProduct } from '../../utils/catalog';
+import { validateImageFiles } from '../../utils/imageUploads';
 
 type PriceMode = 'regular' | 'always' | 'event';
+const productCategories = ['인형·키링', '리빙', '문구·데스크', '의류'];
+const standardSizes = ['프리', 'S', 'M', 'L', 'XL'];
 
 // 부모로부터 받을 데이터
 const props = defineProps<{
@@ -39,9 +42,123 @@ watch(() => props.isOpen, (newVal) => {
       careInstructions: clone.careInstructions || '',
       origin: clone.origin || '대한민국',
       status: clone.status || '판매중',
+      variants: (clone.variants || []).map((variant: any) => ({
+        ...variant,
+        isDeleted: false,
+        images: {
+          thumbnail: variant.images?.thumbnail || '',
+          gallery: [...(variant.images?.gallery || [])]
+        },
+        inventories: (variant.inventories || []).map((inv: any) => ({ ...inv, isDeleted: false })),
+        thumbFile: null as File | null,
+        thumbPreview: '',
+        galleryFiles: [] as File[],
+        galleryPreviews: [] as string[]
+      }))
     };
+  } else if (!newVal && editForm.value?.variants) {
+    for (const variant of editForm.value.variants) releaseVariantFiles(variant);
   }
 });
+
+function releaseVariantFiles(variant: any) {
+  if (variant.thumbPreview) URL.revokeObjectURL(variant.thumbPreview);
+  for (const url of variant.galleryPreviews || []) URL.revokeObjectURL(url);
+}
+
+const categoryOptions = computed(() => {
+  const current = editForm.value?.category;
+  return current && !productCategories.includes(current) ? [current, ...productCategories] : productCategories;
+});
+
+function activeVariants(form = editForm.value) {
+  return (form?.variants || []).filter((variant: any) => !variant.isDeleted);
+}
+
+function activeInventories(variant: any) {
+  return (variant.inventories || []).filter((inv: any) => !inv.isDeleted);
+}
+
+function sizeChoices(variant: any) {
+  const extra = (variant.inventories || []).map((inv: any) => inv.size).filter((size: string) => size && !standardSizes.includes(size));
+  return [...new Set([...standardSizes, ...extra])];
+}
+
+function hasSize(variant: any, size: string) {
+  return activeInventories(variant).some((inv: any) => inv.size === size);
+}
+
+function toggleSize(variant: any, size: string) {
+  const existing = variant.inventories.find((inv: any) => inv.size === size);
+  if (existing && !existing.isDeleted) {
+    if (activeInventories(variant).length <= 1) return alert('사이즈는 하나 이상 남겨주세요.');
+    existing.isDeleted = true;
+    return;
+  }
+  if (existing) existing.isDeleted = false;
+  else variant.inventories.push({ size, stockQuantity: 0, isDeleted: false });
+}
+
+function addVariant() {
+  editForm.value.variants.push({
+    color: '',
+    variantCode: '',
+    isDeleted: false,
+    images: { thumbnail: '', gallery: [] },
+    inventories: [{ size: '프리', stockQuantity: 0, isDeleted: false }],
+    thumbFile: null,
+    thumbPreview: '',
+    galleryFiles: [],
+    galleryPreviews: []
+  });
+}
+
+function removeVariant(variant: any) {
+  if (activeVariants().length <= 1) return alert('색상 옵션은 하나 이상 남겨주세요.');
+  if (variant._id) {
+    variant.isDeleted = true;
+    for (const inv of variant.inventories) inv.isDeleted = true;
+    return;
+  }
+  releaseVariantFiles(variant);
+  editForm.value.variants = editForm.value.variants.filter((item: any) => item !== variant);
+}
+
+function replaceThumb(variant: any, event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  (event.target as HTMLInputElement).value = '';
+  if (!file) return;
+  const message = validateImageFiles([file], 1);
+  if (message) return alert(message);
+  if (variant.thumbPreview) URL.revokeObjectURL(variant.thumbPreview);
+  variant.thumbFile = file;
+  variant.thumbPreview = URL.createObjectURL(file);
+}
+
+function addGallery(variant: any, event: Event) {
+  const input = event.target as HTMLInputElement;
+  const files = [...(input.files || [])];
+  input.value = '';
+  if (!files.length) return;
+  const room = 8 - variant.images.gallery.length - variant.galleryFiles.length;
+  if (files.length > room) return alert('갤러리는 8장까지 등록할 수 있습니다.');
+  const message = validateImageFiles([...variant.galleryFiles, ...files], 8);
+  if (message) return alert(message);
+  for (const file of files) {
+    variant.galleryFiles.push(file);
+    variant.galleryPreviews.push(URL.createObjectURL(file));
+  }
+}
+
+function removeKeptGallery(variant: any, index: number) {
+  variant.images.gallery.splice(index, 1);
+}
+
+function removeNewGallery(variant: any, index: number) {
+  URL.revokeObjectURL(variant.galleryPreviews[index]);
+  variant.galleryPreviews.splice(index, 1);
+  variant.galleryFiles.splice(index, 1);
+}
 
 const previewEffectiveRate = computed(() => {
   const f = editForm.value;
@@ -79,7 +196,19 @@ const handleSave = () => {
     if (Date.parse(e) <= Date.parse(s)) return alert('이벤트 종료 시각은 시작보다 이후여야 합니다.');
   }
 
-  // 백엔드 전송용 payload 생성
+  if (!editForm.value.category) return alert('카테고리를 선택해주세요.');
+  const visible = activeVariants();
+  if (!visible.length) return alert('색상 옵션은 하나 이상 남겨주세요.');
+  for (const variant of visible) {
+    if (!String(variant.color || '').trim()) return alert('색상명을 입력해주세요.');
+    if (!variant._id && !variant.thumbFile) return alert('추가한 색상에는 대표 이미지가 필요합니다.');
+    if (!activeInventories(variant).length) return alert('사이즈는 하나 이상 남겨주세요.');
+    for (const inv of activeInventories(variant)) {
+      if (!Number.isInteger(Number(inv.stockQuantity)) || Number(inv.stockQuantity) < 0) return alert('재고는 0 이상의 정수여야 합니다.');
+    }
+  }
+
+  const variants = editForm.value.variants.filter((variant: any) => variant._id || !variant.isDeleted);
   const payload = {
     _id: editForm.value._id,
     productData: {
@@ -97,17 +226,23 @@ const handleSave = () => {
       category: editForm.value.category,
       brand: editForm.value.brand
     },
-    // 옵션 및 재고 정보 매핑
-    variants: editForm.value.variants.map((v: any) => ({
+    variants: variants.map((v: any) => ({
       _id: v._id,
       variantCode: v.variantCode,
       color: v.color,
-      inventories: v.inventories.map((inv: any) => ({
-        _id: inv._id,     // 재고 ID
+      isDeleted: Boolean(v.isDeleted),
+      keepGallery: v.images?.gallery || [],
+      inventories: (v.inventories || []).filter((inv: any) => inv._id || !inv.isDeleted).map((inv: any) => ({
+        _id: inv._id,
         size: inv.size,
         stockQuantity: Number(inv.stockQuantity),
-        expectedUpdatedAt: inv.updatedAt
+        expectedUpdatedAt: inv.updatedAt,
+        isDeleted: Boolean(inv.isDeleted || v.isDeleted)
       }))
+    })),
+    files: variants.map((v: any) => ({
+      thumb: v.isDeleted ? null : v.thumbFile,
+      gallery: v.isDeleted ? [] : v.galleryFiles
     }))
   };
 
@@ -151,6 +286,12 @@ const handleSave = () => {
             <div class="form-group flex-2">
               <label>상품명 (EN)</label>
               <input v-model="editForm.name.en" type="text" placeholder="영문 상품명 입력" />
+            </div>
+            <div class="form-group flex-1">
+              <label for="edit-product-category">카테고리</label>
+              <select id="edit-product-category" v-model="editForm.category">
+                <option v-for="category in categoryOptions" :key="category" :value="category">{{ category }}</option>
+              </select>
             </div>
           </div>
 
@@ -208,21 +349,59 @@ const handleSave = () => {
             <label for="edit-product-care">취급 및 관리 안내</label>
             <textarea id="edit-product-care" v-model="editForm.careInstructions" rows="3"></textarea>
           </div>
-          <div class="section-title">옵션 및 사이즈별 재고</div>
+          <div class="section-title variant-section-title">
+            <span>옵션 및 사이즈별 재고</span>
+            <button type="button" class="btn-add" @click="addVariant">색상 추가</button>
+          </div>
           <div class="variant-edit-list">
-            <div v-for="variant in editForm.variants" :key="variant._id" class="variant-edit-card">
+            <div v-for="(variant, variantIndex) in activeVariants()" :key="variant._id || variantIndex" class="variant-edit-card">
               <div class="variant-header">
                 <div class="color-info">
-                  <span class="color-dot" :style="{ backgroundColor: variant.color }"></span>
-                  <strong>{{ variant.color }}</strong>
-                  <span class="v-code">{{ variant.variantCode || variant.productCode }}</span>
+                  <span class="color-dot" :style="{ backgroundColor: variant.color || '#dbe3ee' }"></span>
+                  <input v-model="variant.color" type="text" class="color-name" placeholder="색상명" />
+                  <span class="v-code">{{ variant.variantCode || '새 옵션' }}</span>
                 </div>
+                <button type="button" class="btn-remove" @click="removeVariant(variant)">색상 삭제</button>
+              </div>
+
+              <div class="image-editor">
+                <div class="thumb-editor">
+                  <img :src="variant.thumbPreview || imageUrl(variant.images.thumbnail)" alt="" />
+                  <label class="file-btn">
+                    대표 이미지 교체
+                    <input type="file" accept="image/jpeg,image/png,image/webp" hidden @change="replaceThumb(variant, $event)" />
+                  </label>
+                </div>
+                <div class="gallery-editor">
+                  <div v-for="(path, galleryIndex) in variant.images.gallery" :key="path" class="gallery-item">
+                    <img :src="imageUrl(path)" alt="" />
+                    <button type="button" @click="removeKeptGallery(variant, galleryIndex)">삭제</button>
+                  </div>
+                  <div v-for="(preview, galleryIndex) in variant.galleryPreviews" :key="preview" class="gallery-item">
+                    <img :src="preview" alt="" />
+                    <button type="button" @click="removeNewGallery(variant, galleryIndex)">삭제</button>
+                  </div>
+                  <label class="file-btn gallery-add">
+                    갤러리 추가
+                    <input type="file" accept="image/jpeg,image/png,image/webp" multiple hidden @change="addGallery(variant, $event)" />
+                  </label>
+                </div>
+              </div>
+
+              <div class="size-picker">
+                <button
+                  v-for="size in sizeChoices(variant)"
+                  :key="size"
+                  type="button"
+                  :class="{ selected: hasSize(variant, size) }"
+                  @click="toggleSize(variant, size)"
+                >{{ size }}</button>
               </div>
               
               <div class="size-stock-grid">
-                <div v-for="inv in variant.inventories" :key="inv._id" class="size-input-box">
+                <div v-for="inv in activeInventories(variant)" :key="inv._id || inv.size" class="size-input-box">
                   <span class="size-name">{{ inv.size }}</span>
-                  <input v-model.number="inv.stockQuantity" type="number" min="0" :class="{ 'zero-stock': inv.stockQuantity === 0 }" />
+                  <input v-model.number="inv.stockQuantity" type="number" min="0" step="1" :class="{ 'zero-stock': inv.stockQuantity === 0 }" />
                 </div>
               </div>
             </div>
@@ -493,7 +672,21 @@ input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 .size-input-box input.zero-stock { color: #ef4444; }
 
-.variant-header { margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px dashed #e2e8f0; }
+.variant-section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.btn-add, .btn-remove, .file-btn { background: #eff6ff; color: #074CA1; border: 1px solid #bfdbfe; }
+.btn-remove { padding: 6px 10px; font-size: 14px; }
+.color-name { width: 140px; }
+.image-editor { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 12px; margin-bottom: 12px; }
+.thumb-editor, .gallery-item { display: flex; flex-direction: column; gap: 6px; }
+.thumb-editor img, .gallery-item img { width: 100%; height: 96px; object-fit: cover; border-radius: 8px; background: #f8fafc; }
+.gallery-editor { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.gallery-item { width: 96px; }
+.gallery-add { align-self: center; }
+.file-btn { display: inline-flex; align-items: center; justify-content: center; padding: 8px 10px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+.size-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.size-picker button { padding: 6px 12px; background: #fff; border: 1px solid #e2e8f0; color: #64748b; }
+.size-picker button.selected { background: #074CA1; color: #fff; border-color: #074CA1; }
+.variant-header { margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px dashed #e2e8f0; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 .color-info { display: flex; align-items: center; gap: 8px; }
 .color-dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); }
 .v-code { font-size:15px; color:#52627a; }
