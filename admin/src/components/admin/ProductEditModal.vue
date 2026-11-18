@@ -84,26 +84,6 @@ function toggleSize(variant: any, size: string) {
   else variant.inventories.push({ size, stockQuantity: 0, isDeleted: false });
 }
 
-function addVariant() {
-  editForm.value.variants.push({
-    color: '',
-    variantCode: '',
-    isDeleted: false,
-    inventories: [{ size: '프리', stockQuantity: 0, isDeleted: false }]
-  });
-}
-
-function removeVariant(variant: any) {
-  if (activeVariants().length <= 1) return alert('색상 옵션은 하나 이상 남겨주세요.');
-  if (variant._id) {
-    variant.isDeleted = true;
-    for (const inv of variant.inventories) inv.isDeleted = true;
-    return;
-  }
-
-  editForm.value.variants = editForm.value.variants.filter((item: any) => item !== variant);
-}
-
 const previewEffectiveRate = computed(() => {
   const f = editForm.value;
   if (!f) return 0;
@@ -287,10 +267,7 @@ const handleSave = () => {
             <label for="edit-product-care">취급 및 관리 안내</label>
             <textarea id="edit-product-care" v-model="editForm.careInstructions" rows="3"></textarea>
           </div>
-          <div class="section-title variant-section-title">
-            <span>옵션 및 사이즈별 재고</span>
-            <button type="button" class="btn-add" @click="addVariant">색상 추가</button>
-          </div>
+          <div class="section-title">옵션 및 사이즈별 재고</div>
           <div class="variant-edit-list">
             <div v-for="(variant, variantIndex) in activeVariants()" :key="variant._id || variantIndex" class="variant-edit-card">
               <div class="variant-header">
@@ -299,7 +276,6 @@ const handleSave = () => {
                   <input v-model="variant.color" type="text" class="color-name" placeholder="색상명" />
                   <span class="v-code">{{ variant.variantCode || '새 옵션' }}</span>
                 </div>
-                <button type="button" class="btn-remove" @click="removeVariant(variant)">색상 삭제</button>
               </div>
 
               <div class="size-picker">
@@ -586,9 +562,6 @@ input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 .size-input-box input.zero-stock { color: #ef4444; }
 
-.variant-section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.btn-add, .btn-remove { background: #eff6ff; color: #074CA1; border: 1px solid #bfdbfe; }
-.btn-remove { padding: 6px 10px; font-size: 14px; }
 .color-name { width: 140px; }
 .size-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .size-picker button { padding: 6px 12px; background: #fff; border: 1px solid #e2e8f0; color: #64748b; }

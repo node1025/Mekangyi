@@ -1,7 +1,9 @@
 const Wishlist = require('../models/wishlist');
 const Product = require('../models/product/product');
+const ProductVariant = require('../models/product/productvariant');
 const { isObjectIdOrHexString } = require('../models/mariaSchema');
 const { enrichProductForResponse } = require('../utils/productPricing');
+const { sortVariants } = require('../utils/variantOrder');
 
 async function findSellableProduct(productId) {
   return Product.findOne({ _id: productId, isDeleted: false, status: '판매중' });
@@ -18,12 +20,21 @@ exports.getWishlist = async (req, res) => {
     if (!wishlist) return res.status(200).json({ items: [] });
 
     const payload = wishlist.toObject();
-    payload.items = payload.items
-      .filter((row) => row.productId && typeof row.productId === 'object' && !row.productId.isDeleted)
-      .map((row) => {
-        row.productId = enrichProductForResponse(row.productId);
-        return row;
-      });
+    const visible = payload.items.filter((row) => row.productId && typeof row.productId === 'object' && !row.productId.isDeleted);
+    const productIds = visible.map((row) => row.productId._id);
+    const variants = productIds.length
+      ? await ProductVariant.find({ productId: { $in: productIds }, isDeleted: false }).lean()
+      : [];
+    payload.items = visible.map((row) => {
+      const product = enrichProductForResponse(row.productId);
+      const ordered = sortVariants(
+        product.productCode,
+        variants.filter((variant) => String(variant.productId) === String(product._id))
+      );
+      product.thumbnail = ordered[0]?.images?.thumbnail || '';
+      row.productId = product;
+      return row;
+    });
 
     res.status(200).json(payload);
   } catch (error) {

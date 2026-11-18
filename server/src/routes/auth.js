@@ -18,6 +18,9 @@ router.post('/login', loginLimit, authController.login);                // 로�
 router.post('/token/refresh', authController.refreshToken); // 토큰 갱신
 router.post('/check-id', authController.checkId);           // 아이디 중복 확인
 router.post('/find-id', noStore, recoveryLimit, authController.findId);             // 아이디 안내 메일
+router.post('/find-email', noStore, recoveryLimit, require('../controllers/accountRecoveryController').findEmail);
+router.post('/verify-recovery', noStore, recoveryLimit, require('../controllers/accountRecoveryController').verifyAccount);
+router.post('/reset-password-by-phone', noStore, recoveryLimit, require('../controllers/accountRecoveryController').resetPasswordByPhone);
 router.post('/verify-for-password', noStore, recoveryLimit, authController.verifyForPassword);
 router.post('/verify-reset-code', noStore, recoveryLimit, require('../controllers/passwordResetController').verifyCode);
 router.patch('/reset-password-unauthenticated', noStore, recoveryLimit, authController.resetPasswordUnauthenticated);

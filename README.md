@@ -1,117 +1,81 @@
 # 부캉이 굿즈샵 · shopping_mall v3.4
 
-Vue 3(고객몰·관리자) + Express API + MariaDB. **로컬 설치·실행** 안내입니다.
+**Vue 3 (고객몰·관리자) + Express API + MariaDB**
 
-> [준비 사항](#준비-사항) 확인 후 [빠른 시작](#빠른-시작) **1~7단계**를 순서대로 진행하세요.  
-> VS Code는 **Run Task**에서 `★ VS Code: 처음 설치` 또는 `★ VS Code: 로컬 실행 (빌드+스택+고객몰)`을 사용할 수 있습니다.
+## 준비물
+- Node.js 22.12 이상
+- MariaDB 11.4 (실행 중이어야 함)
+- `server/.env`: `.env.example`을 복사해서 작성
 
-## 프로젝트 구조
-
-```text
-shopping_mall/
-├── client/   # 고객몰
-├── admin/    # 관리자
-├── server/   # API·DB
-├── deploy/   # Nginx·운영 설정
-└── scripts/  # 로컬 게이트웨이·스택 실행
-```
-
-## 준비 사항
-
-| 항목 | 요구 |
-| --- | --- |
-| Node.js | 22.12+ |
-| MariaDB | 11.4 (실행 중) |
-| `server/.env` | `server/.env.example` 복사 후 직접 작성 (저장소·ZIP에 없음) |
-
-## 빠른 시작
-
-명령은 **프로젝트 루트**에서 실행합니다.
-
-### 1. MariaDB
-
+## 빠른 시작 (프로젝트 루트에서 실행)
+**1. DB 생성**
 ```sql
-CREATE DATABASE IF NOT EXISTS bukang_shop_dev
-  CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE USER IF NOT EXISTS 'bukang'@'127.0.0.1' IDENTIFIED BY '여기에_강력한_비밀번호';
+CREATE DATABASE IF NOT EXISTS bukang_shop_dev CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+CREATE USER IF NOT EXISTS 'bukang'@'127.0.0.1' IDENTIFIED BY '강력한_비밀번호';
 GRANT ALL PRIVILEGES ON bukang_shop_dev.* TO 'bukang'@'127.0.0.1';
 ```
 
-### 2. `server/.env`
-
+**2. 환경변수**
 ```powershell
-Copy-Item server\.env.example server\.env   # Windows
+Copy-Item server\.env.example server\.env
 ```
-
-```sh
-cp server/.env.example server/.env          # macOS / Linux
-```
-
-필수: `MARIADB_URI`, `DEV_MARIADB_URI`, `JWT_SECRET`, `JWT_REFRESH_SECRET` (서로 다른 랜덤 값).
-
+필수 항목은 `MARIADB_URI`, `DEV_MARIADB_URI`, `JWT_SECRET`, `JWT_REFRESH_SECRET`입니다. JWT 값 두 개는 서로 다른 랜덤 값으로 넣습니다. 아래 코드를 이용해 생성합니다. (2개 생성합니다.)
 ```sh
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-### 3. 설치 및 실행
-
+**3. 설치·실행**
 ```sh
-npm ci                    # 또는 npm install
+npm ci
 npm run db:init
-npm run seed:dev          # 선택
-npm run admin:dev         # 선택, 기본 관리자 ID mekang1223
+npm --prefix server run admin:dev    # 관리자(mekang1223) 생성
 npm run build:local
 npm run start-all
 ```
-
-스택 재시작 전 `npm run stop-local` (포트 점유 시).  
-코드 수정 후에는 **`build:local` → `start-all`**.  
-404·50x·API JSON: VS Code `★ VS Code: 고객몰 404·오류 페이지 반영`, `★ VS Code: API 오류 JSON 반영`.
 
 ## 접속 주소
 
 | 서비스 | 주소 |
 | --- | --- |
 | 고객몰 | http://127.0.0.1:8080 |
-| 관리자 | http://localhost:9081/login (Windows 기본; macOS/Linux는 로그상 8081일 수 있음) |
-| API | 내부 5002 — 브라우저는 각 사이트의 `/api` 사용 |
+| 관리자 | http://localhost:9081/login |
+| API | 내부 5002 (각 사이트의 `/api`로 접근) |
 
-```text
-브라우저 → 게이트웨이(8080 / 9081) → Express(5002) → MariaDB(3306)
-```
+## 코드 수정 후
 
-`npm run dev:shop` / `dev:admin`은 Vite 개발용입니다. IP 제한·프록시 동작은 `start-all` 기준으로 확인하세요.
-
-비밀번호 재설정(로컬): `RESET_MAIL_MODE=local`이면 링크는 `server/.local-mail`에 저장됩니다. **8025 웹 메일함**은 기본으로 뜨지 않으며, 필요할 때만 `server/.env`에 `LOCAL_MAILBOX=1`을 넣고 `start-all` 하세요.
+| 수정 대상 | 할 일 |
+| --- | --- |
+| 전체·API | `build:local` → `start-all` 재시작 |
+| 고객몰·관리자 화면만 | 해당 앱 `npm run build` 후 새로고침 |
 
 ## 문제 해결
 
 | 증상 | 조치 |
 | --- | --- |
-| `MARIADB_URI` 오류 | `server/.env` 생성·URI 확인 |
-| MariaDB 연결 실패 | DB 서비스·계정·DB 이름 확인 |
+| `MARIADB_URI` 오류 | `server/.env` 확인 |
+| DB 연결 실패 | DB 서비스·계정·DB명 확인 |
 | 빈 화면 | `npm run build:local` |
-| 없는 고객몰 URL | NotFound 화면(정상) |
-| API 502 | Express 실행 여부; `/api/*`는 JSON 오류 |
-| `EADDRINUSE` | `npm run stop-local` |
-| 관리자 접속 불가 | 로그의 관리자 포트·루프백(127.0.0.1) 확인 |
+| `EADDRINUSE` | `node scripts/stop-local-stack.cjs` 후 재실행 |
+| API 502 | Express 실행 여부 확인 |
+| 관리자 접속 불가 | 로그의 관리자 포트 확인 (macOS/Linux는 8081일 수 있음) |
 
-관리자 비밀번호 재설정: `npm run admin:reset-password` (VS Code: `Admin: reset password`).
+관리자 비밀번호 재설정: `npm run admin:reset-password`
 
-## 테스트
+## 계정 복구 규칙
 
-```sh
-npm test
-npm run test:http-errors   # 404·502 JSON (Express·게이트웨이)
-npm run test:mariadb       # TEST_MARIADB_URI 전용 DB만, 초기화됨
-```
+- **아이디 찾기**: 이름과 휴대폰 번호가 일치하면 일부만 표시합니다. 예: `test001` → `te****1`
+- **비밀번호 찾기**: 아이디와 휴대폰 번호를 확인한 뒤 변경 창이 열립니다.
+  - 현재 비밀번호가 맞아야 하고, 새 비밀번호는 현재 것과 달라야 합니다.
+  - 형식: 영문+숫자+특수문자(`!@#$%^&*`) 포함, 10자 이상, 72바이트 이하
+- 복구 API는 IP당 15분에 10회로 제한됩니다.
+- 관리자 계정은 이 화면으로 복구할 수 없습니다.
 
-## 운영 배포
+## 운영 배포 전
 
-기본 설정은 **로컬용**입니다. 공개 운영 전 TLS·관리자 접근 제한(VPN/IP)·`.env`·시드 스크립트 미사용·HTTPS 검증을 별도로 준비하세요. Nginx 예시는 `deploy/` (고객몰 `shop.conf`, 관리자 `admin.conf`, [관리자-접근-설정.md](./deploy/관리자-접근-설정.md)).
+기본 설정은 로컬용입니다. 공개 운영 전에 다음을 준비하세요.
+- TLS(HTTPS)
+- 관리자 접근 제한(VPN/IP)
+- `.env` 점검
+- 시드 스크립트 사용 금지
 
-### 계정 복구
-
-로그인 화면에서 아이디 찾기와 비밀번호 찾기를 사용할 수 있습니다. 아이디 찾기는 이름과 이메일 또는 휴대폰 번호로 조회합니다. 비밀번호 찾기는 아이디 + 생년월일(YYYY-MM-DD) + 가입 이메일을 모두 확인한 뒤 등록된 이메일로 6자리 인증번호를 발송합니다. 인증번호 확인 후 새 비밀번호를 설정합니다. 인증번호는 15분 동안 한 번만 사용 가능하고 5회 실패 시 차단되며 재발송은 1분 간격입니다. 복구 API는 IP당 15분에 10회로 제한됩니다.
-
-실제 발송은 서버의 RESET_MAIL_MODE를 local이 아닌 값으로 설정하고 SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM 및 HTTPS FRONTEND_URL을 설정해야 합니다. 로컬 개발 모드는 실제 메일을 보내지 않으며 server/.local-mail의 JSON에서 아이디 안내 또는 인증번호 본문(text)를 확인할 수 있습니다.
+Nginx 예시는 `deploy/`에 있습니다.

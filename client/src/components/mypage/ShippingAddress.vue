@@ -77,9 +77,46 @@ async function save() {
 }
 
 const formatPhone = (phone: string) => phone.replace(/^(\d{3})(\d{4})(\d{4})$/, '$1-$2-$3');
+
+function loadDaumPostcode() {
+  return new Promise<void>((resolve, reject) => {
+    if (window.daum?.Postcode) { resolve(); return; }
+    const script = document.createElement('script');
+    script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('주소 검색을 불러오지 못했습니다.'));
+    document.head.appendChild(script);
+  });
+}
+
+async function openPostcode() {
+  error.value = '';
+  try {
+    await loadDaumPostcode();
+  } catch {
+    error.value = '주소 검색을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.';
+    return;
+  }
+  new window.daum.Postcode({
+    oncomplete: (data: { address: string; userSelectedType: string; bname: string; buildingName: string; apartment: string; zonecode: string }) => {
+      let fullAddress = data.address;
+      let extraAddress = '';
+      if (data.userSelectedType === 'R') {
+        if (data.bname && /[동|로|가]$/g.test(data.bname)) extraAddress += data.bname;
+        if (data.buildingName && data.apartment === 'Y') {
+          extraAddress += extraAddress ? `, ${data.buildingName}` : data.buildingName;
+        }
+        if (extraAddress) fullAddress += ` (${extraAddress})`;
+      }
+      draft.zipCode = data.zonecode;
+      draft.basicAddress = fullAddress;
+    }
+  }).open();
+}
+
 onMounted(load);
 </script>
-<template><div class="shipping-wrapper"><p v-if="loading" role="status">배송지를 불러오는 중입니다.</p><p v-if="error" class="shipping-error" role="alert">{{error}}</p><p v-if="message" class="shipping-message" role="status">{{message}}</p><button v-if="!loading&&!saved" @click="load">다시 불러오기</button><div v-if="saved" class="address-grid"><article class="address-card"><header class="card-header"><strong class="addr-name">기본 배송지</strong><button v-if="!editing" class="shipping-edit" @click="beginEdit">배송지 수정</button></header><template v-if="!editing"><div class="card-body"><div class="info-row"><span class="label">받는 분</span><span class="value">{{saved.receiver}}</span></div><div class="info-row"><span class="label">연락처</span><span class="value">{{formatPhone(saved.phone)}}</span></div><div class="info-row"><span class="label">주소</span><span class="value"><span class="zip">({{saved.zipCode}})</span><br>{{saved.basicAddress}}<span class="detail">{{saved.detailAddress}}</span></span></div></div><p class="shipping-note">배송지의 받는 분과 연락처는 회원정보와 별도로 저장됩니다.<br>이미 접수된 주문의 배송지는 변경되지 않습니다.</p></template><form v-else class="shipping-form" @submit.prevent="save"><label for="shipping-receiver">받는 분<input id="shipping-receiver" v-model="draft.receiver" required maxlength="50" autocomplete="shipping name"></label><label for="shipping-phone">연락처<input id="shipping-phone" v-model="draft.phone" required maxlength="13" inputmode="tel" autocomplete="shipping tel" placeholder="010-1234-5678"></label><label for="shipping-postcode">우편번호<input id="shipping-postcode" v-model="draft.zipCode" required pattern="[0-9]{5}" maxlength="5" inputmode="numeric" autocomplete="shipping postal-code"></label><label for="shipping-address" class="shipping-wide">기본 주소<input id="shipping-address" v-model="draft.basicAddress" required maxlength="200" autocomplete="shipping address-line1"></label><label for="shipping-detail" class="shipping-wide">상세 주소<input id="shipping-detail" v-model="draft.detailAddress" required maxlength="200" autocomplete="shipping address-line2"><span v-if="fieldErrors.detailAddress" class="shipping-field-error" role="alert">{{ fieldErrors.detailAddress }}</span></label><p class="shipping-note shipping-wide">회원 이름·연락처는 그대로 유지하며, 이 배송지를 다음 주문의 기본값으로 사용합니다.</p><div class="shipping-actions shipping-wide"><button type="button" :disabled="busy" @click="cancel">취소</button><button type="submit" :disabled="busy">{{busy?'저장 중…':'배송지 저장'}}</button></div></form></article></div></div></template>
+<template><div class="shipping-wrapper"><p v-if="loading" role="status">배송지를 불러오는 중입니다.</p><p v-if="error" class="shipping-error" role="alert">{{error}}</p><p v-if="message" class="shipping-message" role="status">{{message}}</p><button v-if="!loading&&!saved" @click="load">다시 불러오기</button><div v-if="saved" class="address-grid"><article class="address-card"><header class="card-header"><strong class="addr-name">기본 배송지</strong><button v-if="!editing" class="shipping-edit" @click="beginEdit">배송지 수정</button></header><template v-if="!editing"><div class="card-body"><div class="info-row"><span class="label">받는 분</span><span class="value">{{saved.receiver}}</span></div><div class="info-row"><span class="label">연락처</span><span class="value">{{formatPhone(saved.phone)}}</span></div><div class="info-row"><span class="label">주소</span><span class="value"><span class="zip">({{saved.zipCode}})</span><br>{{saved.basicAddress}}<span class="detail">{{saved.detailAddress}}</span></span></div></div><p class="shipping-note">배송지의 받는 분과 연락처는 회원정보와 별도로 저장됩니다.<br>이미 접수된 주문의 배송지는 변경되지 않습니다.</p></template><form v-else class="shipping-form" @submit.prevent="save"><label for="shipping-receiver">받는 분<input id="shipping-receiver" v-model="draft.receiver" required maxlength="50" autocomplete="shipping name"></label><label for="shipping-phone">연락처<input id="shipping-phone" v-model="draft.phone" required maxlength="13" inputmode="tel" autocomplete="shipping tel" placeholder="010-1234-5678"></label><label for="shipping-postcode" class="shipping-wide">우편번호<div class="zip-row"><input id="shipping-postcode" v-model="draft.zipCode" required pattern="[0-9]{5}" maxlength="5" inputmode="numeric" autocomplete="shipping postal-code" readonly placeholder="주소 검색으로 입력"><button type="button" class="address-search" @click="openPostcode">주소 검색</button></div></label><label for="shipping-address" class="shipping-wide">기본 주소<input id="shipping-address" v-model="draft.basicAddress" required maxlength="200" autocomplete="shipping address-line1" readonly placeholder="주소 검색으로 입력"></label><label for="shipping-detail" class="shipping-wide">상세 주소<input id="shipping-detail" v-model="draft.detailAddress" required maxlength="200" autocomplete="shipping address-line2"><span v-if="fieldErrors.detailAddress" class="shipping-field-error" role="alert">{{ fieldErrors.detailAddress }}</span></label><p class="shipping-note shipping-wide">회원 이름·연락처는 그대로 유지하며, 이 배송지를 다음 주문의 기본값으로 사용합니다.</p><div class="shipping-actions shipping-wide"><button type="button" :disabled="busy" @click="cancel">취소</button><button type="submit" :disabled="busy">{{busy?'저장 중…':'배송지 저장'}}</button></div></form></article></div></div></template>
 <style scoped>
 /* 배송지 페이지 전체 컨테이너 */
 .shipping-wrapper {
@@ -204,5 +241,7 @@ onMounted(load);
   color: #c62828;
   line-height: 1.4;
 }
-.shipping-error{color:#ad3939}.shipping-wrapper>button{padding:12px 20px}@media(max-width:600px){.shipping-form{grid-template-columns:1fr}.address-card{padding:22px}.shipping-form label{grid-column:1/-1}.info-row{font-size:16px}}
+.shipping-error{color:#ad3939}.shipping-wrapper>button{padding:12px 20px}
+.zip-row{display:flex;gap:8px;align-items:center}.zip-row input{flex:1}.address-search{flex:none;border:0;border-radius:7px;background:#122551;color:#fff;padding:13px 16px;font-size:15px;cursor:pointer;white-space:nowrap}.shipping-form input[readonly]{background:#f7f9fc}
+@media(max-width:600px){.shipping-form{grid-template-columns:1fr}.address-card{padding:22px}.shipping-form label{grid-column:1/-1}.info-row{font-size:16px}.zip-row{flex-direction:column;align-items:stretch}}
 </style>

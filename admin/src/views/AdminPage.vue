@@ -47,6 +47,12 @@ async function lockAdmin() {
 const activeMenu = ref('products');
 
 onMounted(async () => {
+  syncSessionBarOffset();
+  if (sessionBarEl.value && typeof ResizeObserver !== 'undefined') {
+    sessionBarObserver = new ResizeObserver(syncSessionBarOffset);
+    sessionBarObserver.observe(sessionBarEl.value);
+  }
+  window.addEventListener('resize', syncSessionBarOffset);
   setAdminConsoleMenu(activeMenu.value);
   registerAdminSessionClock(bindSessionClock);
   try {
@@ -58,6 +64,8 @@ onMounted(async () => {
 });
 onUnmounted(() => {
   clearInterval(sessionTimer);
+  sessionBarObserver?.disconnect();
+  window.removeEventListener('resize', syncSessionBarOffset);
   unregisterAdminSessionClock();
 });
 
@@ -107,6 +115,15 @@ const currentMenuLabel = computed(() => {
 });
 
 const isSidebarOpen = ref(false);
+const sessionBarEl = ref<HTMLElement | null>(null);
+const sessionBarHeight = ref(142);
+let sessionBarObserver: ResizeObserver | undefined;
+
+function syncSessionBarOffset() {
+  const bar = sessionBarEl.value;
+  if (!bar) return;
+  sessionBarHeight.value = Math.ceil(bar.getBoundingClientRect().bottom + window.scrollY);
+}
 
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value;
@@ -122,8 +139,9 @@ const selectMenu = (id: string) => {
 </script>
 
 <template>
-  <div class="admin-session-bar">
-    <button type="button" class="mobile-toggle" @click="toggleSidebar">
+  <div class="admin-shell" :style="{ '--admin-session-bar-height': sessionBarHeight + 'px' }">
+  <div ref="sessionBarEl" class="admin-session-bar">
+    <button type="button" class="mobile-toggle" @click="toggleSidebar" :aria-expanded="isSidebarOpen" aria-label="관리 메뉴">
       {{ isSidebarOpen ? '✕' : '☰' }}
     </button>
     <span>관리자 보호 세션 · {{ Math.floor(secondsLeft / 60) }}:{{ String(secondsLeft % 60).padStart(2, '0') }}</span>
@@ -185,10 +203,11 @@ const selectMenu = (id: string) => {
       </div>
     </main>
   </div>
+  </div>
 </template>
 
 <style scoped>
-.admin-session-bar{position:relative;z-index:1002;display:flex;justify-content:flex-end;align-items:center;gap:18px;padding:12px 24px;background:#edf0e8;color:#42583d;font-size:15px}.admin-session-bar button{background:#294733;color:white;border:0;padding:8px 12px;font-size:15px}.admin-session-bar .mobile-toggle{background:#6a8fe7}
+.admin-session-bar{position:relative;z-index:1002;display:flex;justify-content:flex-end;align-items:center;gap:18px;padding:12px 24px;background:#edf0e8;color:#42583d;font-size:15px}.admin-session-bar button{background:#294733;color:white;border:0;padding:8px 12px;font-size:15px}
 /* 전체 레이아웃 스타일 */
 .admin-layout {
   display: flex;
@@ -308,10 +327,6 @@ const selectMenu = (id: string) => {
 .mobile-toggle {
   display: none;
   margin-right: auto;
-  background: #6a8fe7;
-  color: white;
-  border: none;
-  border-radius: 4px;
   padding: 8px 12px;
   font-size: 20px;
   line-height: 1;
@@ -327,21 +342,27 @@ const selectMenu = (id: string) => {
 
   .sidebar {
     position: fixed;
-    left: -260px; /* 화면 왼쪽으로 숨김 */
+    top: calc(var(--admin-session-bar-height, 142px) + 20px);
+    left: -260px;
+    height: calc(100vh - var(--admin-session-bar-height, 142px) - 20px);
     transition: left 0.3s ease;
     z-index: 1000;
   }
 
   .sidebar.is-open {
-    left: 0; /* 열릴 때 화면으로 들어옴 */
+    left: 0;
+  }
+
+  .sidebar .nav-menu {
+    padding-top: 20px;
   }
 
   .sidebar-overlay {
     position: fixed;
-    top: 0;
+    top: var(--admin-session-bar-height, 56px);
     left: 0;
     width: 100%;
-    height: 100%;
+    height: calc(100% - var(--admin-session-bar-height, 56px));
     background: rgba(0, 0, 0, 0.5);
     z-index: 999;
   }
