@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo", // TS 빌드 캐시 저장 위치
+    "target": "ES2023",                   // JS 문법 수준
+    "lib": ["ES2023"],                    // 내장 라이브러리 타입
+    "module": "ESNext",                   // ES 모듈 방식
+    "types": ["node"],                    // Node 환경 타입
+    "skipLibCheck": true,                 // 라이브러리 타입 검사 생략(빌드 속도 개선)
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",        // 번들러 방식의 모듈 해석 사용
+    "allowImportingTsExtensions": true,   // .ts 확장자를 직접 import 허용
+    "verbatimModuleSyntax": true,         // import/export 문법을 변형 없이 유지
+    "moduleDetection": "force",           // import 여부와 관계없이 ES 모듈로 처리
+    "noEmit": true,                       // JS 출력 파일 생성하지 않음(타입 체크만 수행)
+
+    /* Linting */
+    "strict": true,                       // 엄격한 타입 검사 모드
+    "noUnusedLocals": true,               // 사용되지 않는 지역 변수 경고
+    "noUnusedParameters": true,           // 사용되지 않는 함수 매개변수 경고
+    "erasableSyntaxOnly": true,           // 지워도 동작에 영향 없는 타입만 허용
+    "noFallthroughCasesInSwitch": true,   // switch 문에서 case 누락 방지
+    "noUncheckedSideEffectImports": true  // 부작용만 있는 import 검사 강화
+  },
+
+  "include": ["vite.config.ts"]           // TS가 검사할 파일 지정
+}

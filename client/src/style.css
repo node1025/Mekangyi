@@ -1,0 +1,15 @@
+:root{font-family:Arial,'Malgun Gothic',sans-serif;color:#26332a;background:#fff;font-synthesis:none;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;color-scheme:light}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;min-width:320px}button,input,select,textarea{font:inherit}button,a,input,select,textarea{-webkit-tap-highlight-color:transparent}button{cursor:pointer}a{color:inherit}img,video{max-width:100%}:focus-visible{outline:2px solid #427158;outline-offset:4px}button:disabled{cursor:not-allowed;opacity:.55}html{scroll-behavior:smooth}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+.category-nav{scrollbar-width:none}.category-nav::-webkit-scrollbar{display:none}
+
+:root{font-family:"Malgun Gothic",Arial,sans-serif;font-size:17px;color:#122551;line-height:1.6}body{color:#122551}h1,h2,h3,h4{color:#122551}input,select,textarea{font-size:16px}:focus-visible{outline-color:#122551}
+
+@font-face{font-family:'Bukangi Jua';src:url('/fonts/Jua-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Bukangi Gowun';src:url('/fonts/GowunDodum-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+:root{--font-body:'Bukangi Gowun','Malgun Gothic',sans-serif;--font-cute:'Bukangi Jua','Bukangi Gowun',sans-serif;font-family:var(--font-body);font-synthesis:weight}
+body,button,input,select,textarea{font-family:var(--font-body)}
+h1,h2,h3,h4,.category-tile strong,.footer-brand strong{font-family:var(--font-cute);font-weight:400;letter-spacing:0.01em}
+
+h1,h2,h3,h4{font-synthesis:none}
+
