@@ -36,7 +36,7 @@ test('email lookup rejects incomplete contact before querying', async t => {
     assert.equal(lookup.mock.callCount(), 0);
 });
 
-test('phone reset changes the password after the current password matches', async t => {
+test('phone reset changes the password after the account matches', async t => {
     const user = {
         password: 'old',
         refreshToken: 'refresh',
@@ -49,7 +49,7 @@ test('phone reset changes the password after the current password matches', asyn
     });
     const res = response();
     await recovery.resetPasswordByPhone({
-        body: { userId: 'member1', phone: '010-1234-5678', currentPassword: 'OldPassword1!', newPassword: 'NewPassword1!' }
+        body: { userId: 'member1', phone: '010-1234-5678', newPassword: 'NewPassword1!' }
     }, res);
     assert.equal(res.code, 200);
     assert.equal(user.password, 'NewPassword1!');
@@ -58,33 +58,29 @@ test('phone reset changes the password after the current password matches', asyn
     assert.deepEqual(res.cookies, ['refreshToken']);
 });
 
-test('phone reset refuses a weak password, the same password, and a wrong current password', async t => {
+test('phone reset refuses a weak password, the same password, and a missing member', async t => {
     const lookup = t.mock.method(User, 'findOne', async () => ({
-        async comparePassword() { return false; }
+        async comparePassword() { return true; },
+        async save() { throw new Error('must not save'); }
     }));
     const weak = response();
     await recovery.resetPasswordByPhone({
-        body: { userId: 'member1', phone: '01012345678', currentPassword: 'OldPassword1!', newPassword: 'short' }
+        body: { userId: 'member1', phone: '01012345678', newPassword: 'short' }
     }, weak);
     assert.equal(weak.code, 400);
     assert.equal(lookup.mock.callCount(), 0);
 
     const same = response();
     await recovery.resetPasswordByPhone({
-        body: { userId: 'member1', phone: '01012345678', currentPassword: 'NewPassword1!', newPassword: 'NewPassword1!' }
+        body: { userId: 'member1', phone: '01012345678', newPassword: 'NewPassword1!' }
     }, same);
     assert.equal(same.code, 400);
-
-    const wrong = response();
-    await recovery.resetPasswordByPhone({
-        body: { userId: 'member1', phone: '01012345678', currentPassword: 'WrongPassword1!', newPassword: 'NewPassword1!' }
-    }, wrong);
-    assert.equal(wrong.code, 401);
+    assert.match(same.body.message, /다르게/);
 
     lookup.mock.mockImplementation(async () => null);
     const missing = response();
     await recovery.resetPasswordByPhone({
-        body: { userId: 'member1', phone: '01012345678', currentPassword: 'OldPassword1!', newPassword: 'NewPassword1!' }
+        body: { userId: 'member1', phone: '01012345678', newPassword: 'NewPassword1!' }
     }, missing);
     assert.equal(missing.code, 404);
 });

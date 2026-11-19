@@ -9,7 +9,6 @@ const userStore = useUserStore();
 const base = `${(import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')}/api/auth`;
 const userId = ref('');
 const phone = ref('');
-const currentPassword = ref('');
 const password = ref('');
 const confirmation = ref('');
 const busy = ref(false);
@@ -38,7 +37,6 @@ async function confirmAccount() {
       userId: userId.value.trim(),
       phone: phone.value.replace(/\D/g, '')
     });
-    currentPassword.value = '';
     password.value = '';
     confirmation.value = '';
     modalError.value = '';
@@ -65,10 +63,6 @@ async function resetPassword() {
     modalError.value = '비밀번호가 서로 일치하지 않습니다.';
     return;
   }
-  if (currentPassword.value === password.value) {
-    modalError.value = '새 비밀번호는 현재 비밀번호와 다르게 설정해야 합니다.';
-    return;
-  }
   if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*]).{10,}$/.test(password.value) || new TextEncoder().encode(password.value).length > 72) {
     modalError.value = '영문, 숫자, 특수문자(!@#$%^&*)를 포함하여 10자 이상, 72바이트 이하로 입력해주세요.';
     return;
@@ -78,10 +72,8 @@ async function resetPassword() {
     await axios.post(`${base}/reset-password-by-phone`, {
       userId: userId.value.trim(),
       phone: phone.value.replace(/\D/g, ''),
-      currentPassword: currentPassword.value,
       newPassword: password.value
     });
-    currentPassword.value = '';
     password.value = '';
     confirmation.value = '';
     modalOpen.value = false;
@@ -123,10 +115,6 @@ async function resetPassword() {
       <div v-if="modalOpen" class="modal-overlay" @click.self="closeModal">
         <form class="modal-card" @submit.prevent="resetPassword">
           <h3>비밀번호 변경</h3>
-          <div class="field-wrap">
-            <label for="recovery-current">현재 비밀번호</label>
-            <input id="recovery-current" v-model="currentPassword" type="password" autocomplete="current-password" required :disabled="busy" />
-          </div>
           <div class="field-wrap">
             <label for="recovery-password">새 비밀번호</label>
             <input id="recovery-password" v-model="password" type="password" autocomplete="new-password" minlength="10" maxlength="72" required :disabled="busy" />

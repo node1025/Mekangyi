@@ -75,23 +75,21 @@ exports.verifyAccount = async (req, res) => {
     }
 };
 
-// 아이디·휴대폰·현재 비밀번호가 맞으면 이메일 인증 없이 새 비밀번호를 저장한다.
+// 아이디·휴대폰이 맞으면 이메일 인증과 현재 비밀번호 없이 새 비밀번호를 저장한다.
 exports.resetPasswordByPhone = async (req, res) => {
-    const { userId, phone, currentPassword, newPassword } = req.body || {};
-    if (!validUserId(userId) || !validPhone(phone) || typeof currentPassword !== 'string' || !currentPassword) {
-        return res.status(400).json({ message: '아이디, 휴대폰 번호, 현재 비밀번호를 정확히 입력해주세요.' });
+    const { userId, phone, newPassword } = req.body || {};
+    if (!validUserId(userId) || !validPhone(phone)) {
+        return res.status(400).json({ message: '아이디와 휴대폰 번호를 정확히 입력해주세요.' });
     }
     if (!validPassword(newPassword)) {
         return res.status(400).json({ message: '비밀번호는 영문, 숫자, 특수문자(!@#$%^&*)를 포함한 10자 이상, UTF-8 기준 72바이트 이하로 입력해주세요.' });
     }
-    if (currentPassword === newPassword) {
-        return res.status(400).json({ message: '새 비밀번호는 현재 비밀번호와 다르게 설정해야 합니다.' });
-    }
     try {
         const user = await findActiveMember(userId, phone);
         if (!user) return res.status(404).json({ message: notFound });
-        const matched = await user.comparePassword(currentPassword);
-        if (!matched) return res.status(401).json({ message: '현재 비밀번호가 일치하지 않습니다.' });
+        if (await user.comparePassword(newPassword)) {
+            return res.status(400).json({ message: '새 비밀번호는 현재 비밀번호와 다르게 설정해야 합니다.' });
+        }
         user.password = newPassword;
         user.refreshToken = undefined;
         await user.save();
