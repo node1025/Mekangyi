@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import axios from 'axios';
+import { validateImageFiles } from '../../utils/imageUploads';
 import { salePricePreview, effectiveDiscountPreview, fromDatetimeLocalValue } from '../../utils/catalog';
 
 import ProductTable from './ProductTable.vue';
@@ -57,7 +58,11 @@ const getInitialProductData = () => ({
   origin: '대한민국',
   description: '',
   careInstructions: '',               // 취급 주의사항
-  status: '판매중'
+  status: '판매중',
+  thumbnail: null as File | null,     // 공통 썸네일 파일
+  thumbPreview: '',                   // 썸네일 미리보기 URL
+  gallery: [] as File[],              // 공통 갤러리 이미지
+  galleryPreviews: [] as string[]     // 갤러리 미리보기 URL
 });
 
 // 상품 데이터 반응형 객체
@@ -94,6 +99,39 @@ const formattedFinalPrice = computed(() => {
   return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(preview) + label;
 });
 
+const handleCommonThumbnail = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  const error = validateImageFiles([file, ...productData.gallery], 20);
+  if (error) { alert(error); input.value = ''; return; }
+  if (productData.thumbPreview) URL.revokeObjectURL(productData.thumbPreview);
+  productData.thumbnail = file;
+  productData.thumbPreview = URL.createObjectURL(file);
+};
+
+const handleCommonGallery = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const files = Array.from(input.files || []);
+  const gallery = [...productData.gallery, ...files];
+  const error = validateImageFiles(gallery, 8) || validateImageFiles([...(productData.thumbnail ? [productData.thumbnail] : []), ...gallery], 20);
+  if (error) { alert(error); input.value = ''; return; }
+  productData.gallery.push(...files);
+  productData.galleryPreviews.push(...files.map(f => URL.createObjectURL(f)));
+};
+
+const removeCommonThumbnail = () => {
+  if (productData.thumbPreview) URL.revokeObjectURL(productData.thumbPreview);
+  productData.thumbnail = null;
+  productData.thumbPreview = '';
+};
+
+const removeCommonGallery = (gi: number) => {
+  if (productData.galleryPreviews[gi]) URL.revokeObjectURL(productData.galleryPreviews[gi]);
+  productData.gallery.splice(gi, 1);
+  productData.galleryPreviews.splice(gi, 1);
+};
+
 // 사이즈 선택/해제 토글
 const toggleSize = (vi: number, size: string) => {
   const variant = variants.value[vi];
@@ -116,6 +154,8 @@ const handleCancel = () => {  // 취소 버튼
 };
 
 const resetForm = () => {     // 폼 전체 초기화
+  if (productData.thumbPreview) URL.revokeObjectURL(productData.thumbPreview);
+  productData.galleryPreviews.forEach(url => URL.revokeObjectURL(url));
   Object.assign(productData, getInitialProductData());
   variants.value = [createEmptyVariant()];
 };
@@ -164,6 +204,9 @@ const submitProduct = async () => {
     };
 
     formData.append('data', JSON.stringify(rawData));
+
+    if (productData.thumbnail) formData.append('common_thumb', productData.thumbnail);
+    productData.gallery.forEach(file => formData.append('common_gallery', file));
 
     // 서버 전송
     const response = await axios.post(`${SERVER_URL}/api/products/complex`, formData, { 
@@ -292,6 +335,27 @@ const submitProduct = async () => {
                 <label>상품설명 및 관리법</label>
               </div>
 
+              <div class="section-title">🖼️ 상품 이미지</div>
+              <div class="image-upload-container">
+                <div v-if="productData.thumbPreview" class="preview-item">
+                  <img :src="productData.thumbPreview" alt="대표 이미지 미리보기" />
+                  <button type="button" class="remove-img-btn" @click="removeCommonThumbnail">×</button>
+                  <div class="img-badge">대표</div>
+                </div>
+                <label v-else class="image-add-label">
+                  <input type="file" hidden @change="handleCommonThumbnail" accept="image/jpeg,image/png,image/webp" />
+                  <div class="upload-placeholder"><span>+</span><span>대표</span></div>
+                </label>
+
+                <div v-for="(img, gIndex) in productData.galleryPreviews" :key="gIndex" class="preview-item">
+                  <img :src="img" alt="갤러리 이미지 미리보기" />
+                  <button type="button" class="remove-img-btn" @click="removeCommonGallery(gIndex)">×</button>
+                </div>
+                <label class="image-add-label">
+                  <input type="file" hidden multiple @change="handleCommonGallery" accept="image/jpeg,image/png,image/webp" />
+                  <div class="upload-placeholder"><span>+</span><span>갤러리</span></div>
+                </label>
+              </div>
             </section>
 
             <div class="section-title">🎨 색상 및 재고 설정</div>
@@ -772,12 +836,89 @@ const submitProduct = async () => {
 .list-enter-from { opacity: 0; transform: translateY(30px); }
 .list-leave-to { opacity: 0; transform: scale(0.9); }
 
-.image-section-label {
-  display: block;
-  font-size: 0.9rem;
-  margin-bottom: 12px;
-  border-top: 1px solid #f1f5f9;
-  padding-top: 20px;
+.image-upload-container {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 10px;
 }
+
+.preview-item {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-img-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.7);
+  color: #fff;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.remove-img-btn:hover { background: #ef4444; }
+
+.img-badge {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  background: #2563eb;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  padding: 4px 0;
+}
+
+.image-add-label {
+  width: 110px;
+  height: 110px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.image-add-label:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.upload-placeholder span:first-child { font-size: 24px; font-weight: 300; }
+.upload-placeholder span:last-child { font-size: 16px; font-weight: 700; }
 
 </style>
