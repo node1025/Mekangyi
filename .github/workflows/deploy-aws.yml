@@ -7,6 +7,12 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  AWS_REGION: ap-northeast-2
+  DEPLOY_ROLE_ARN: arn:aws:iam::458201209340:role/mk-prod-role-git-deploy
+  SHOP_BUCKET: mk-prod-shop-web-458201209340
+  ADMIN_BUCKET: mk-prod-admin-web-458201209340
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -33,16 +39,33 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
-          role-to-assume: arn:aws:iam::458201209340:role/mk-prod-github-deploy-role
-          aws-region: ap-northeast-2
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Verify AWS identity
         run: aws sts get-caller-identity
 
+      # 쇼핑몰: --delete 를 쓰지 않음 (버킷의 uploads/ 상품 이미지가 지워지지 않도록)
       - name: Deploy shopping mall
         run: |
-          aws s3 sync client/dist/ s3://mk-prod-shop-static-1223/
+          aws s3 sync client/dist/ s3://${{ env.SHOP_BUCKET }}/ --exclude "index.html" --exclude "assets/*" --cache-control "public, max-age=3600"
+          aws s3 sync client/dist/assets/ s3://${{ env.SHOP_BUCKET }}/assets/ --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp client/dist/index.html s3://${{ env.SHOP_BUCKET }}/index.html --cache-control "no-cache"
 
       - name: Deploy admin
         run: |
-          aws s3 sync admin/dist/ s3://mk-prod-admin-static-1223/
+          aws s3 sync admin/dist/ s3://${{ env.ADMIN_BUCKET }}/ --exclude "index.html" --exclude "assets/*" --cache-control "public, max-age=3600"
+          aws s3 sync admin/dist/assets/ s3://${{ env.ADMIN_BUCKET }}/assets/ --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp admin/dist/index.html s3://${{ env.ADMIN_BUCKET }}/index.html --cache-control "no-cache"
+          aws s3 cp client/public/50x.html s3://${{ env.ADMIN_BUCKET }}/50x.html --cache-control "no-store"
+
+      # CloudFront 배포 ID를 GitHub 저장소 변수(Settings > Secrets and variables > Actions > Variables)에
+      # SHOP_DIST_ID, ADMIN_DIST_ID 로 등록하면 실행됨. 비어 있으면 건너뜀.
+      # 배포 역할에 cloudfront:CreateInvalidation 권한이 있어야 함.
+      - name: Invalidate shop index
+        if: ${{ vars.SHOP_DIST_ID != '' }}
+        run: aws cloudfront create-invalidation --distribution-id ${{ vars.SHOP_DIST_ID }} --paths "/index.html"
+
+      - name: Invalidate admin index
+        if: ${{ vars.ADMIN_DIST_ID != '' }}
+        run: aws cloudfront create-invalidation --distribution-id ${{ vars.ADMIN_DIST_ID }} --paths "/index.html" "/50x.html"
