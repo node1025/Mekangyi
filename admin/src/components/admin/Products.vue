@@ -132,6 +132,13 @@ const removeCommonGallery = (gi: number) => {
   productData.galleryPreviews.splice(gi, 1);
 };
 
+const addVariant = () => variants.value.push(createEmptyVariant());
+
+const removeVariant = (index: number) => {
+  if (variants.value.length <= 1) return;
+  variants.value.splice(index, 1);
+};
+
 // 사이즈 선택/해제 토글
 const toggleSize = (vi: number, size: string) => {
   const variant = variants.value[vi];
@@ -358,13 +365,17 @@ const submitProduct = async () => {
               </div>
             </section>
 
-            <div class="section-title">🎨 색상 및 재고 설정</div>
+            <div class="section-header-flex">
+              <div class="section-title">🎨 색상 및 재고 설정</div>
+              <button type="button" class="pill-add-btn" @click="addVariant">+ 색상 추가</button>
+            </div>
 
             <TransitionGroup name="list">
               <div v-for="(variant, vIndex) in variants" :key="vIndex" class="option-card">
                 <div class="option-card-header">
                   <input v-model="variant.variantCode" class="color-name-input" style="width: 150px;" placeholder="상품코드+색상" />
                   <input v-model="variant.color" class="color-name-input" placeholder="색상명" />
+                  <button v-if="variants.length > 1" type="button" class="circle-remove-btn" @click="removeVariant(vIndex)">×</button>
                 </div>
 
                 <div class="size-chip-grid">
@@ -484,6 +495,34 @@ const submitProduct = async () => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.section-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.section-header-flex .section-title {
+  margin-bottom: 0;
+}
+
+.pill-add-btn {
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 700;
+  border: 1.5px solid #074CA1;
+  padding: 8px 18px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.pill-add-btn:hover {
+  background: #dbeafe;
+  transform: scale(1.05);
 }
 
 /* 그리드 레이아웃 */
